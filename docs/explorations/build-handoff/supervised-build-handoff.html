@@ -1,0 +1,258 @@
+<title>Supervised Build Handoff</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root { --bg:#f7f6f2; --ink:#1f211c; --muted:#646a5e; --line:#d8d7cd; --card:#ffffff; --accent:#8a4b2f; --accent-ink:#ffffff; --chip:#ecebe4; --ok:#2f7a4d; --warn:#a3660f; --bad:#a83a2c; --code:#efede6; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#181915; --ink:#ebe9e2; --muted:#a3a89b; --line:#34372f; --card:#1f221d; --accent:#e0a684; --accent-ink:#1b1410; --chip:#2a2e27; --ok:#7dc596; --warn:#d9a75a; --bad:#e07f70; --code:#1c1f1a; } }
+  :root[data-theme="dark"] { --bg:#181915; --ink:#ebe9e2; --muted:#a3a89b; --line:#34372f; --card:#1f221d; --accent:#e0a684; --accent-ink:#1b1410; --chip:#2a2e27; --ok:#7dc596; --warn:#d9a75a; --bad:#e07f70; --code:#1c1f1a; }
+  body { background:var(--bg); color:var(--ink); font-family:"Source Sans 3",system-ui,sans-serif; font-size:16px; line-height:1.5; }
+  .wrap { max-width:820px; margin:0 auto; padding-block:24px 64px; padding-inline:16px; display:grid; gap:30px; }
+  h1 { font-family:"Source Serif 4",Georgia,serif; font-weight:600; font-size:27px; margin:0; text-wrap:balance; }
+  .lede { color:var(--muted); margin:6px 0 0; max-width:68ch; }
+  h2 { font-family:"Source Serif 4",Georgia,serif; font-weight:600; font-size:19px; margin:0 0 10px; text-wrap:balance; }
+  h3 { font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:0 0 6px; font-weight:600; }
+  p { margin:0 0 8px; max-width:72ch; } ul,ol { margin:0 0 8px; padding-left:20px; max-width:72ch; } li { margin:4px 0; }
+  table { border-collapse:collapse; width:100%; font-size:14.5px; } th,td { text-align:left; padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; }
+  .scroll { overflow-x:auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  code, pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px; } code { background:var(--code); padding:1px 5px; border-radius:4px; }
+  pre { background:var(--code); border:1px solid var(--line); padding:12px 14px; border-radius:8px; overflow-x:auto; margin:6px 0 10px; line-height:1.45; }
+  .decision { border-left:3px solid var(--accent); padding-left:14px; }
+  .open { border-left:3px solid var(--warn); padding-left:14px; }
+  .stop td { background:color-mix(in srgb, var(--accent) 8%, transparent); }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+  .pill { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:1px 7px; border-radius:999px; background:var(--chip); color:var(--muted); white-space:nowrap; }
+  .pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)} .pill.now{background:var(--accent);color:var(--accent-ink)}
+  .said { font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; border-left:2px solid var(--line); padding-left:12px; color:var(--ink); margin:6px 0 10px; max-width:64ch; }
+  .said small { display:block; font-family:"Source Sans 3",system-ui,sans-serif; font-size:12.5px; color:var(--muted); margin-top:3px; }
+  .states { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-family:"IBM Plex Mono",monospace; font-size:12.5px; }
+  .states .arrow { color:var(--muted); }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Supervised Build Handoff</h1>
+    <p class="lede">After the interview, the build leaves the chat: the colleague hands the frozen fiche and mockup to a builder outside the conversation, an engineer approves, the hub lands the result, and the colleague comes back for the acceptance walk. Version 5, 2026-09-22: build-ready. Git is the version store inside each app's Durable Object (spike passed, see <code>docs/spike-isomorphic-git.md</code> on branch <code>spike/isomorphic-git</code>); the remote is one repository per app, created by the hub, invisible to the colleague; publishing from outside is a fetch. Version 2 (2026-09-21) is folded in below.</p>
+  </header>
+
+  <section class="decision">
+    <h2>Decision</h2>
+    <p><b>Every build of a new app or a substantial change is a handoff.</b> The colleague interviews, writes the fiche, shows the mockup, closes gate 2, then says it is passing the work on and stops. It never builds a whole app inside a chat turn again. The build runs as a ticket: a branch, a brief, a builder and a reviewer, one human approval, a publish from the merged commit, and a hidden return message that brings the colleague back to open step 5.</p>
+    <p><b>What stays in the chat:</b> using the app, answering questions, and the small fix as process.md already defines it (moment-sized, reversible, inside the agreement, on an app that is already live). The colleague keeps <code>publish</code> and <code>undo</code> for exactly that.</p>
+    <h3>Why this replaces version 2's « only hard work is handed off »</h3>
+    <ul>
+      <li><b>One path, no triage rule.</b> Version 2 asked the model to decide, per ticket, whether the work was hard. That is a judgment made under pressure by the same model that wants to finish the turn. A fixed rule (new app or substantial change ⇒ ticket) needs no judgment and the evaluator can check it.</li>
+      <li><b>The in-chat build is the weakest step of the process.</b> No tests, no reviewer, no second pair of eyes, and publication is live at once (« there is no rehearsal »). The interview is now on a fast, low-effort model tier; the build needs the strongest tier, a worktree, the dev container and the per-package gates. Those live outside the Durable Object.</li>
+      <li><b>The wait becomes honest.</b> An interview turn answers in seconds. A build takes minutes to hours. A spinner for twenty minutes in the dock is the wrong promise; « I will come back to you when it is ready » is the right one, and the stage layout already has the dot on the Chat button for the return.</li>
+      <li><b>The human stop is what the version-2 page asked for anyway.</b> « The colleague never merges a handoff on its own. » With every build a ticket, every build gets that stop.</li>
+    </ul>
+  </section>
+
+  <section class="open">
+    <h2>What the colleague says, and the one settled rule it changes</h2>
+    <p>process.md ends with: « There is one colleague wearing the interviewer, product, designer, and builder hats; never imply that a separate team is behind the work. » The platform history records the same decision (one ambient colleague, no separate per-app agent). The owner's proposed line implies exactly that. Two ways to write the line; the person keeps one interlocutor in both, and never talks to the builder.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>A · Owner's wording <span class="pill now">recommended</span></h3>
+        <p class="said">« Merci pour cet échange. Je passe le relais à un développeur avec la fiche et la maquette telles que vous les avez validées. Je reviens vers vous dès que l'application est en place ; vous n'avez rien à faire d'ici là. »<small>Honest about the process: a separate build with an engineer's approval does exist. Changes the process.md rule to « one interlocutor »: the person talks only to the colleague; the developer is named, never reachable.</small></p>
+      </div>
+      <div class="card">
+        <h3>B · One voice</h3>
+        <p class="said">« Merci pour cet échange. Je pars construire ça ; cela prend un moment. Je reviens vers vous dès que c'est en place ; vous n'avez rien à faire d'ici là. »<small>Keeps the settled rule word for word. Slightly less true: the colleague does not build, it waits. Reports at acceptance read the same either way.</small></p>
+      </div>
+    </div>
+    <p>Whichever wins, it is one sentence in process.md at the activity-4 boundary, said once, and the evaluator's H1 checkpoint asserts it. The « Où on en est : étape 4 sur 5 — je construis » line stays, said just before it.</p>
+  </section>
+
+  <section>
+    <h2>The seam with the interview work</h2>
+    <p>The interview slice (gates, fiche shown at the gates, stepper) ends at the gate-2 yes on the « on construit ça ? » card. This spec starts at that yes. Today the colleague then sets the intent to <code>building</code> and starts writing under <code>app/</code>. After this spec it calls one tool, <code>request_build</code>, says the line above, and the turn ends. Nothing in the interview slice needs to know what happens next; the interview agent should not implement anything past the gate-2 card.</p>
+    <div class="scroll"><table>
+      <tr><th>Moment</th><th>Owned by</th><th>Runtime state</th></tr>
+      <tr><td>Fiche agreed (gate 1), mockup shown, gate-2 card asked</td><td>interview slice</td><td>intent <code>agreed</code>, mockup file present, strip at step 3</td></tr>
+      <tr><td>Gate-2 yes → <code>request_build</code></td><td><b>this spec</b></td><td>intent <code>building</code> + <code>handoff: &lt;ticket&gt;</code>, strip at step 4 « en construction »</td></tr>
+      <tr><td>Landing → return message → acceptance walk</td><td><b>this spec</b></td><td><code>handoff</code> cleared, strip at step 5</td></tr>
+      <tr><td>Gate 3 « je garde »</td><td>process.md, unchanged</td><td>intent <code>kept</code></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="scroll"><table>
+      <tr><th>#</th><th>Step</th><th>Who</th><th>Ticket state</th></tr>
+      <tr><td>1</td><td>Gate 2 closes. The colleague calls <code>request_build({ intent, note? })</code>. The runtime checks: intent <code>agreed</code>, mockup exists, no pending journal entry, no open ticket on this app. It writes the ticket, sets the front matter, and returns the ticket id. The colleague says the handoff line and stops.</td><td>colleague + runtime</td><td><code>queued</code></td></tr>
+      <tr><td>2</td><td>The hub exports the app to the apps repository: the current published tree under <code>apps/&lt;workspace&gt;/&lt;slug&gt;/</code> on <code>main</code> (created if this is the first ticket), then a branch <code>build/&lt;slug&gt;/&lt;ticket&gt;</code> carrying the fiche at its frozen revision, the mockup, PRODUCT.md, the kit, and <code>BUILD.md</code>, a brief the runtime writes from a template. A draft pull request opens with the ticket id in its title.</td><td>hub</td><td><code>queued</code></td></tr>
+      <tr><td>3</td><td>The runner takes the ticket: one worktree, the dev container, the builder brief. The builder implements the acceptance lines, runs two logic cases for anything that decides, inspects console and screenshot, appends CHANGES.md and rewrites PRODUCT.md, writes a plain-language change note, and stores proof under <code>.eval-evidence/&lt;ticket&gt;/</code>. It never talks to the person; a question it cannot answer from the brief marks the ticket stuck.</td><td>builder (cloud)</td><td><code>building</code></td></tr>
+      <tr><td>4</td><td>The reviewer reads the branch against the fiche and tries to break every acceptance line, the migration rule, and the kit rule. Blockers go back to the builder. At most three rounds, then stuck.</td><td>reviewer (cloud, read-only)</td><td><code>review</code></td></tr>
+      <tr class="stop"><td>5</td><td><b>Stop, engineer.</b> Reads the note, the proof, the verdict, the diff. Merge, send back with one line (the builder gets one more round), or take over the worktree. The PR is the review surface; on the phone, the GitHub app is enough.</td><td>human</td><td><code>needs_human</code> → <code>merged</code> | <code>sent_back</code> | <code>stuck</code></td></tr>
+      <tr><td>6</td><td>Landing. The hub reads the tree at the merge commit, publishes it as a new version and activates it (the hub's <code>activate</code> route exists and no tool uses it yet; undo remains the rollback), syncs the colleague's dev filesystem from that commit (a real overwrite of <code>app/</code> and <code>agent/</code>, not today's additive one-time pull-down, which never replaces a file already present), and clears the handoff on the intent. Version 2's rehearsal slot is not in v1: the acceptance walk already happens on the live app, and additive-only migrations mean nothing is lost on undo.</td><td>hub</td><td><code>landed</code></td></tr>
+      <tr><td>7</td><td>Return. The hub sends the colleague a hidden message, the way the kickoff does, carrying the change note and the landed version. The colleague says what changed in the person's words, that it is displayed, the « my app is down » line, and opens the acceptance walk with its card. If the dock is closed, the Chat button shows the dot.</td><td>hub + colleague</td><td>—</td></tr>
+      <tr class="stop"><td>8</td><td><b>Stop, the person (gate 3).</b> Walks the acceptance lines on real cases. A bug that is moment-sized is fixed in the chat; any other bug re-opens a ticket on the same track with the report in the brief; an adjustment is a new ticket; a new need goes back to phase 2.</td><td>human</td><td>possibly a new <code>queued</code></td></tr>
+    </table></div>
+    <h3 style="margin-top:12px">Ticket states</h3>
+    <div class="states"><span>queued</span><span class="arrow">→</span><span>building</span><span class="arrow">→</span><span>review</span><span class="arrow">→</span><span>needs_human</span><span class="arrow">→</span><span>merged</span><span class="arrow">→</span><span>landed</span><span class="arrow">·</span><span>sent_back → building</span><span class="arrow">·</span><span>stuck (terminal until the engineer acts)</span></div>
+  </section>
+
+  <section>
+    <h2>What the person sees during the wait</h2>
+    <div class="grid2">
+      <div class="card"><h3>The strip</h3><p>Step 4 lit, with a second line under the label: « en construction — vous n'avez rien à faire ». When the ticket lands: « prêt à vérifier ensemble », and the dot on the Chat button. The process endpoint already returns <code>handoff</code>; the strip is ready to read it.</p></div>
+      <div class="card"><h3>The chat</h3><p>Open as always. Using the app and asking questions work. A build request during the wait is written into the fiche's revision journal as « demandé par vous » and answered with « je le note pour après la construction ». It is not sent to the builder: the brief is frozen at the fiche revision the person validated.</p></div>
+      <div class="card"><h3>Time</h3><p>No estimate is promised. A ticket has a budget (proposed: two hours of runner time, then stuck). If it is exceeded, the colleague says once: « cela prend plus de temps que prévu ; je vous préviens dès que c'est en place ». It never says anything it has not observed.</p></div>
+      <div class="card"><h3>Failure</h3><p>A stuck ticket is the engineer's. The person hears nothing new until the engineer either lands it or sends the colleague a line to relay (« il manque une précision sur le cas 2 »), which the colleague turns into one card. The person never sees a PR, a branch, or a builder.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Enforced by the runtime, not by the prompt</h2>
+    <ul>
+      <li><code>request_build</code> refuses unless the intent is <code>agreed</code>, the mockup file exists for that track, the journal has no pending « à valider » entry, and no ticket is open on the app. Each refusal is one line the colleague can relay.</li>
+      <li><code>publish</code> refuses while a ticket is open (any state before <code>landed</code>). It also refuses when the active intent is <code>discovery</code> or <code>agreed</code> and the app has no current version: a new app is never built from the chat. An app that is already live keeps the small-fix path.</li>
+      <li>The brief is generated from the fiche by the runtime, never written by the model, so the builder gets the validated contract and nothing else.</li>
+      <li>Landing publishes only from a merged commit whose PR carries the ticket id; the hub refuses any other landing call.</li>
+      <li>Three evaluator checkpoints join <code>evals/e2e/checkpoints.md</code>: H1, the handoff line said exactly once, right after the gate-2 yes, and the turn ends with no build tool call; H2, zero <code>publish</code> or app-file writes from the chat between the gate-2 yes and the return message; H3, after the return message, the change note in the person's words, the « my app is down » line, and the acceptance card.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Records</h2>
+    <div class="grid2">
+      <div>
+        <h3>Intent front matter (one field added)</h3>
+<pre>---
+status: building
+title: Mon suivi fitness
+revision: 12
+handoff: t-2026-09-22-fitness-01   # present while a ticket is open
+---</pre>
+        <h3>Process endpoint, <code>GET /&lt;slug&gt;/api/v1/process</code></h3>
+<pre>{
+  "step": 4, "label": "I build it",
+  "status": "building", "gate": null, "pending": false,
+  "handoff": {
+    "ticket": "t-2026-09-22-fitness-01",
+    "state": "review",           // queued|building|review|needs_human|merged|landed|sent_back|stuck
+    "since": "2026-09-22T10:41:00Z",
+    "over_budget": false
+  }
+}</pre>
+      </div>
+      <div>
+        <h3>Ticket (hub table)</h3>
+<pre>ticket
+  id, workspace, slug
+  intent_path, fiche_revision, mockup_path
+  branch, pr_url, state, rounds
+  builder_run_id, reviewer_run_id
+  note                    -- plain-language change note
+  landed_version          -- app-runner version number
+  budget_ms, started_at
+  created_at, updated_at
+
+approval
+  ticket_id, by, at, kind   -- merge | acceptance
+  note, evidence_url</pre>
+        <h3>Return message (hidden, like the kickoff)</h3>
+<pre>[handoff-return] Ticket t-2026-09-22-fitness-01 landed as version 7.
+Change note: « Vous pouvez dicter un repas ; le total du jour
+se met à jour tout seul. »
+Open step 5: say what changed, say it is displayed, say the
+"my app is down" line, then the acceptance card.</pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The brief the builder receives</h2>
+    <p><code>BUILD.md</code> on the branch, written by the runtime from a template. Sections, in order:</p>
+    <ol>
+      <li><b>Identity.</b> Workspace, slug, ticket id, the landed version it starts from, the fiche revision it implements.</li>
+      <li><b>The fiche</b>, whole, at the frozen revision. Acceptance lines repeated as a checklist the builder ticks with proof paths.</li>
+      <li><b>The mockup</b> path and the rule: the first screen matches it, in the person's labels.</li>
+      <li><b>The boundary.</b> <code>capabilities.md</code> (what can be built, additive migrations only) and <code>kit.md</code> (components and tokens, never bespoke CSS for covered parts).</li>
+      <li><b>Delivery checks</b>, copied from process.md phase 4: every acceptance line exercised through the app's tools, two logic cases per deciding behaviour, console then screenshot, CHANGES.md and PRODUCT.md.</li>
+      <li><b>Proof.</b> Screenshots and tool outputs under <code>.eval-evidence/&lt;ticket&gt;/</code>, named by acceptance line; a change note of at most three sentences in the person's language.</li>
+      <li><b>Earlier reports</b>, only on a re-ticket after acceptance: the classified bug reports, verbatim.</li>
+      <li><b>Rules.</b> Never talk to the person; a question means stuck with the question written down. Never touch <code>agent/intents/</code>. Never publish; the hub publishes.</li>
+    </ol>
+  </section>
+
+  <section class="decision">
+    <h2>Git is the version store; the remote is the option</h2>
+    <p><b>Owner decision, 2026-09-22, after the spike.</b> Each app's history is a real git repository inside the app's own Durable Object: blobs, trees, commits and tags, kept by isomorphic-git over a small <code>fs.promises</code> adapter on the DO's SQLite. The versions table becomes that repository. What git has no notion of stays in the hub: <code>refs/hub/current</code> and <code>refs/hub/previous</code> are the pointer, and activate still runs migrate-then-switch. Git is the truth for content; the pointer is the truth for what serves.</p>
+    <div class="grid2">
+      <div class="card"><h3>Local, always on</h3><ul>
+        <li>Publish = write the tree, commit, tag <code>v&lt;n&gt;</code>, move <code>refs/hub/current</code>. Undo = a new commit restoring the previous tree plus a pointer move; history is never rewritten.</li>
+        <li>Publish, activate, rollback, versions and files keep their routes and shapes; only the storage under them changes. The app-runner tests are the proof that nothing observable moved.</li>
+        <li>Existing version rows are imported as commits on first boot, oldest first.</li>
+        <li>Diff between any two versions comes free: the reviewer's verdict and the change note read it.</li>
+        <li>The app-runner worker gains the <code>nodejs_compat</code> flag (isomorphic-git needs Buffer); the agent-flue worker already has it.</li>
+      </ul></div>
+      <div class="card"><h3>Remote, an app option</h3><ul>
+        <li>Off by default; the owner switches it on from the app's settings; the first <code>request_build</code> switches it on by itself, because a ticket needs a branch.</li>
+        <li>The hub creates <code>boring-app-&lt;workspace&gt;-&lt;slug&gt;</code>, private, with the agent credentials from Vault, and pushes main and the tags. The name is derived, never chosen.</li>
+        <li>After every publish, the push runs in the background after the version is written. A publish never fails because the push failed; a missed push is retried and shown on the settings page as « history behind by N versions ».</li>
+        <li>The colleague has no git tool and no repository name in its prompt. Nothing changes for it.</li>
+      </ul></div>
+    </div>
+    <h3 style="margin-top:12px">What the spike measured (fitness app, 16 real versions + 30 synthetic, workerd)</h3>
+    <div class="scroll"><table>
+      <tr><th>Operation</th><th>Result</th><th>Time</th></tr>
+      <tr><td>Import 16 versions, commit + tag each</td><td>415 KB stored for 1,960 KB raw</td><td>2.1 s, 47 to 100 ms each</td></tr>
+      <tr><td>Log, diff of two versions</td><td>—</td><td>18 ms, 13 ms</td></tr>
+      <tr><td>Push main + 16 tags to GitHub</td><td>ok</td><td>25 s, 1.5 s per ref, all network</td></tr>
+      <tr><td>Fetch a commit made on GitHub, fast-forward, read its tree</td><td>landed</td><td>1.0 s</td></tr>
+      <tr><td>Push main alone with 30 new commits</td><td>ok</td><td>1.9 s</td></tr>
+      <tr><td>Restart workerd</td><td>47 commits still there</td><td>—</td></tr>
+    </table></div>
+    <p style="margin-top:8px">Worker bundle 635 KB raw, 127 KB gzipped. Nothing near the CPU limit. Two caveats: fetch needs a remote entry added once, and tags push one per round trip, so a long first export pushes main first and tags in the background.</p>
+  </section>
+
+  <section class="decision">
+    <h2>Publishing from outside</h2>
+    <p>Three ways in, all landing on the same version row and, with git backing on, the same <code>main</code>.</p>
+    <div class="scroll"><table>
+      <tr><th>Way</th><th>Who</th><th>How it works</th><th>Status</th></tr>
+      <tr><td>Merge on <code>main</code></td><td>the runner, an engineer, CI, any git client</td><td>The hub fetches <code>main</code> (poll in v1, webhook later). A commit it did not author is landed as a version: fast-forward, read the tree from the commit, validate like any publish (must contain <code>app/index.js</code>, agents and viewers validated), tag, move the pointer, sync the colleague's dev filesystem. The spike measured one second for the fetch and read. A commit that fails validation is not a version; the failure is a status check on the commit and a line on the app's settings.</td><td><span class="pill">to build, P3</span></td></tr>
+      <tr><td>The hub's publish tool over MCP</td><td>Claude Code, Codex, any MCP client with a personal token</td><td>Exists today: the <code>publish</code> tool on the hub's MCP endpoint publishes a full code tree as a version. With git backing on, it also becomes a commit. The colleague already pulls such a version down into its dev filesystem when it has none.</td><td><span class="pill ok">exists</span></td></tr>
+      <tr><td>A CLI from a checkout</td><td>an engineer at a terminal</td><td>Not needed as a separate thing: with git backing on, <code>git push</code> is the CLI. Without it, the MCP publish tool is the way in.</td><td><span class="pill">by design, none</span></td></tr>
+    </table></div>
+    <p style="margin-top:8px"><b>Who wins when both move.</b> The version row carries the expected current sha, as the colleague's publish already does. An outside commit and a chat publish that cross each other resolve the same way as two chat publishes today: the second one is refused with the current sha, and the hub commits the winner. On a refused outside commit, the hub opens a branch <code>rejected/&lt;sha&gt;</code> and reports it, so nothing pushed is lost.</p>
+    <p><b>What the person notices.</b> Nothing new. An outside version arrives as any version does: the app refreshes live, the colleague sees the new current on its next turn, and undo works on it.</p>
+  </section>
+
+  <section>
+    <h2>Where it runs</h2>
+    <div class="scroll"><table>
+      <tr><th>Piece</th><th>Choice for v1</th><th>Why</th></tr>
+      <tr><td>Repository</td><td>One private repository per app, created by the hub the moment git backing turns on, named with one prefix: <code>boring-app-&lt;workspace&gt;-&lt;slug&gt;</code>. The colleague never sees it (see « Git backing » below).</td><td>Owner decision, 2026-09-22. One repository per app keeps each app's history, access and PR list its own; the hub owns creation, so the count of repositories costs nothing to anyone.</td></tr>
+      <tr><td>Runner</td><td>A timer on the coding VM polling <code>GET /api/tickets?state=queued</code> with a runner token; one worktree per ticket; the builder and reviewer briefs are the ones the ship slices use today (Sol builds, Astra reviews), run headless; <code>gh pr create</code>; state updates through <code>POST /api/tickets/:id</code></td><td>The VM already has the dev container, the CLIs and the Vault credentials. A cloud runner is a later move of the same script.</td></tr>
+      <tr><td>Landing trigger</td><td>The runner polls merged PRs carrying a ticket id and calls <code>POST /api/tickets/:id/landed</code>; the hub fetches the tree at the merge commit and calls the app-runner's publish then activate</td><td>No inbound webhook to secure in v1; the poll is a few seconds.</td></tr>
+      <tr><td>Engineer queue</td><td>The PR list with labels; the hub's queue page comes later</td><td>Everything the version-2 queue page showed is on the PR: note, proof gallery, verdict, diff, three buttons.</td></tr>
+      <tr><td>Models</td><td>Builder on the strongest tier at medium effort; reviewer on a different model family; the colleague stays on the interview tier</td><td>The cross-model review is what finds the round-four bugs today.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Pieces, in build order</h2>
+    <div class="scroll"><table>
+      <tr><th>Piece</th><th>What</th><th>Proof</th></tr>
+      <tr><td>P1 · Handoff state</td><td>The <code>handoff</code> front-matter field; <code>deriveProcessStatus</code> returns the object above. Three places assert <code>handoff === null</code> today and widen together: <code>src/process/status.ts</code>, the shell validator in <code>shell/src/process.ts</code>, and <code>shownProcess</code> in <code>column-bar.tsx</code>. The strip shows the second line and the dot.</td><td>Fixture tests for both states; strip screenshot at step 4 in both.</td></tr>
+      <tr><td>P2 · The tool and the gates</td><td><code>request_build</code> in the colleague toolbox writing a ticket row and the front matter; <code>publish</code> refusals; the handoff line and the return behaviour in process.md and instructions.md; boring-pm's « set <code>building</code> during publication » becomes « set at <code>request_build</code> »; checkpoints H1 to H3 in the evaluator.</td><td>Evaluator run: 24 existing checkpoints green plus H1, H2; a scripted return message makes H3 green.</td></tr>
+      <tr><td>P3 · Git as the version store</td><td>The SQL filesystem adapter and isomorphic-git in the app-runner DO; import of existing rows as commits; publish → commit + tag + pointer; undo as a restoring commit; the existing routes unchanged; <code>nodejs_compat</code> on the worker. Then the remote option: settings toggle, repository creation with the derived name, background push with retry and the behind-by-N status, fetch of <code>main</code> → version, branch and BUILD.md on ticket creation.</td><td>The app-runner suite green with git underneath. Switch the remote on for the fitness app: the repository appears with one commit per version. Publish from the chat, see the commit. Push a commit, see the version live and the dev filesystem synced.</td></tr>
+      <tr><td>P4 · Runner</td><td>The polling script, worktree per ticket, builder then reviewer with the bounded loop, PR creation, state updates, the budget.</td><td>One real ticket from the fitness app goes queued → needs_human with proof on the PR.</td></tr>
+      <tr><td>P5 · Landing and return</td><td>The landed call, publish and activate from the merge commit, the return dispatch, the dot on the Chat button.</td><td>Two-browser proof: gate-2 yes → handoff line → merge on GitHub → the colleague comes back and opens the acceptance card, with no publish from the chat in between.</td></tr>
+      <tr><td>Later</td><td>Rehearsal slot at <code>/&lt;slug&gt;/preview/&lt;version&gt;</code>; the hub's queue page with the engineer role; a runner in the cloud; the return through a channel (WhatsApp) when no dock is open; a second approval for non-additive migrations, the day the additive-only rule is relaxed.</td><td>—</td></tr>
+    </table></div>
+    <p style="margin-top:8px">P1 and P2 are small and land first: from then on the colleague already stops at gate 2 and says the line, even if the ticket is then worked by hand from this session's worktrees. P3 to P5 make the hand disappear.</p>
+  </section>
+
+  <section class="open">
+    <h2>Owner decisions still open</h2>
+    <p>Settled on 2026-09-22: git is the version store in every app (spike passed); one remote repository per app, created automatically with a fixed prefix, transparent to the colleague, as an app option.</p>
+    <ol>
+      <li><b>The line</b>: A (« un développeur », changes the one-colleague rule to one-interlocutor) or B (one voice). Recommended: A.</li>
+      <li><b>Auto-merge</b> when the reviewer says safe and CI is green? Recommended: no. The human stop is the point of the version-2 decision; revisit after twenty tickets.</li>
+      <li><b>Where the repositories live</b>: the hachej GitHub organization (recommended: the PR, labels and phone review come free) or bare repositories on the VM.</li>
+      <li><b>The budget</b> before a ticket is stuck. Proposed: two hours of runner time.</li>
+    </ol>
+  </section>
+</div>
