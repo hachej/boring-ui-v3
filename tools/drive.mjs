@@ -13,7 +13,8 @@ import { chromePath } from "./control.mjs";
 
 const require = createRequire(import.meta.url);
 const skill = path.join(root, ".agent/skills/verify-boring");
-const { drivers } = await import(pathToFileURL(path.join(skill, "drive/drivers.mjs")).href);
+const driversFile = path.join(skill, "drive/drivers.mjs");
+const { drivers } = existsSync(driversFile) ? await import(pathToFileURL(driversFile).href) : { drivers: {} };
 
 export function flags(argv) {
   const out = { _: [] };
@@ -41,10 +42,6 @@ export function doctor(options = {}) {
   add("TLC", tlc === "pinned jar, checksum ok", tlc, "TLA+ models (boring model, test:formal)");
   const java = has(process.env.JAVA_BIN ?? "java", ["-version"]);
   add("java", java, java ?? "not found (set JAVA_BIN)", "TLA+ models");
-  const lean = has("lake", ["--version"]);
-  add("lean", lean, lean ?? "not found", "Lean semantic modules (PLATFORM-5); without it verify reports that claim FAILED");
-  const bend = spawnSync("bend", ["--help"], { encoding: "utf8" }).status === 0;
-  add("bend", bend, bend ? "on PATH" : "not found", "Job contract laws (JOB-CONTRACT-1, JOB-6)");
   let codex = "no pi login";
   try {
     const entry = JSON.parse(readFileSync(process.env.PI_AUTH_FILE ?? path.join(homedir(), ".pi/agent/auth.json"), "utf8"))["openai-codex"];
@@ -92,7 +89,7 @@ export async function drive(names, options) {
 
 /** Start the hub as a child process and resolve once it prints its URL. */
 export function runHost(args, { inherit = false } = {}) {
-  const child = spawn(process.execPath, ["--no-warnings", "--import=tsx", path.join(root, "host/run.ts"), ...args], { cwd: root, stdio: inherit ? "inherit" : ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, ["--no-warnings", "--import=tsx", path.join(root, "packages/agent/src/host/run.ts"), ...args], { cwd: root, stdio: inherit ? "inherit" : ["ignore", "pipe", "pipe"] });
   if (inherit) return { child, ready: Promise.resolve(null) };
   let log = "";
   const ready = new Promise((resolve, reject) => {

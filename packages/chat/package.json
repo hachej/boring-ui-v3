@@ -1,0 +1,9 @@
+{
+  "name": "@boring/chat",
+  "version": "0.0.0",
+  "description": "One React component that shows a thread and talks to an agent endpoint; placeable in any layout.",
+  "type": "module",
+  "private": true,
+  "exports": { ".": "./src/index.ts" },
+  "devDependencies": { "@boring/agent": "*" }
+}

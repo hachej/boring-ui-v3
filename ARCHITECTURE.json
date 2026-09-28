@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "packages": {
+    "files": { "dependsOn": [], "typeOnlyDependsOn": [] },
+    "agent": { "dependsOn": ["files"], "typeOnlyDependsOn": [] },
+    "chat": { "dependsOn": [], "typeOnlyDependsOn": ["agent"] }
+  },
+  "externalDependencies": {
+    "files": [],
+    "agent": [],
+    "chat": []
+  },
+  "computedImports": {},
+  "consumers": ["examples", "test"]
+}

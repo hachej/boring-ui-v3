@@ -1,6 +1,5 @@
 node_modules/
 .cache/
-.lake/
 states/
 *_TTrace_*.tla
 *_TTrace_*.bin

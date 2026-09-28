@@ -1,40 +1,40 @@
 # Boring
 
-The Boring platform: outcome-driven work for people and agents over authoritative state. An expert describes an outcome; the platform records it as a Job, admits every effect through an Environment, attributes it to an Actor, and keeps Resources as the only truth. Everything a person sees is a composition over those four nouns.
+A library for putting an agent next to an application. The application keeps its backend, its database, its auth and its deploy. Boring adds three things it can install separately:
 
-This repository starts from the kernel and grows outward in fixed layers. See [the roadmap](docs/architecture/ROADMAP.md).
-
-## What is here
-
-| Path | What it is |
+| Package | What it gives you |
 |---|---|
-| `platform/` | The kernel: four nouns with their TypeScript contracts, laws (`INVARIANTS.md`), evidence registries (`VERIFY.json`), Lean semantics and TLA+ models. Root files hold the cross-cutting laws, relationships and the executable architecture policy. |
-| `bin/boring.mjs`, `tools/` | The `boring` command: structure and evidence checks, model runs, and the remote control for an isolated running hub. |
-| `.agent/skills/verify-boring/` | How an agent verifies a change by running the app, with the feature map it drives. |
-| `test/architecture/`, `test/formal/` | Negative controls: the architecture checker rejects what it must, and each TLA+ model detects its own mutated guard. |
-| `docs/architecture/` | Why a Job-driven platform, the method, and the roadmap. |
-| `docs/sources/` | Archived source material that influenced the method. |
+| [`@boring/agent`](packages/agent) | A durable agent loop mounted in your backend: threads, runs, tools admitted before they run, a receipt for every effect, questions and approvals as records, usage metered per actor. |
+| [`@boring/chat`](packages/chat) | One React component that shows a thread and talks to that loop. Place it anywhere. Register the page commands the agent may use. |
+| [`@boring/files`](packages/files) | Files under mounts, with revisions and receipts, behind one provider contract that the tree, the HTTP endpoints and the agent's tools all share. Local store, directory or remote sandbox. |
+
+`agent` depends on `files`. `chat` depends on the agent's wire types only. `files` depends on nothing here. That direction is written in [ARCHITECTURE.json](ARCHITECTURE.json) and enforced by `boring check`.
+
+## What makes it different from a raw agent framework
+
+The loop is what any framework gives you. The library is what an application needs around it: model output is never authority, every effect is attributed and revision-checked, human decisions are rows the model cannot fake, roles and budgets stay the application's, and `boring env up` runs your app with a scripted model and reads the receipts to prove it.
+
+## Laws and evidence
+
+Each package owns its laws in `INVARIANTS.md` and the evidence for them in `VERIFY.json`. The [library-wide laws](INVARIANTS.md) cover what crosses packages. A law is either backed by a command or a bounded model, or it is an explicit deferral naming the command that will replace it. `boring verify` runs all of it and never counts a deferral as passing.
 
 ## Commands
 
 ```bash
 npm ci --ignore-scripts
 npm run setup:formal      # pinned TLC
-npm run check             # architecture and evidence-registry structure
-npm run typecheck
-npm run verify            # every registered evidence: tests, TLA+ models, Lean build; deferrals are listed, never counted as passing
+npm run check             # package direction, laws and registries present
+npm run typecheck         # the three public contracts together
+npm run verify            # every registered evidence: tests, TLA+ models; deferrals listed
 node bin/boring.mjs --help
 ```
 
-`verify` needs Node 22, Java 17+ and the Lean toolchain named in `lean-toolchain`. CI runs the same gate on every push and pull request.
+`verify` needs Node 22 and Java 17+. CI runs the same gate on every push.
 
-## Rules
+## Where this stands
 
-- A concept becomes a noun only when a consumer needs an independent identity, lifecycle or authority boundary. Otherwise it is a composition.
-- Every law has one definition and one owner registry. Missing evidence is an explicit deferral with a reason, never a green check.
-- The layer policy in `platform/ARCHITECTURE.json` is enforced by `boring check`: the kernel imports nothing above it.
-- A change is verified by running it. `boring` is the remote control; the feature map says what to drive and what counts as proof.
+This is the skeleton: contracts, laws, registries, the checker and the two models that describe real races. The code arrives package by package in the order of [the roadmap](docs/architecture/ROADMAP.md). The method comes from [docs/architecture/METHOD.md](docs/architecture/METHOD.md); the reasons for three packages are in [docs/architecture/LIBRARY.md](docs/architecture/LIBRARY.md).
 
 ## History
 
-The kernel, the evidence method and the verification CLI were developed in `hachej/boring-hub` (pull requests #24 to #32, September 2026) and moved here as one basis. The earlier registry and hub-shell explorations this repository held are in commit `a0ef51e`.
+The laws and the verification method were first built as a platform kernel in `hachej/boring-hub` (pull requests #24 to #32) and moved here in commit `211649a`. They were then rewritten for a library. The earlier hub-shell registry plan is in commit `a0ef51e`.

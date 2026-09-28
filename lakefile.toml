@@ -1,9 +1,0 @@
-name = "boring"
-version = "0.1.0"
-defaultTargets = ["Boring"]
-
-[[lean_lib]]
-name = "Boring"
-roots = ["platform.formal.Boring", "platform.jobs.Job", "platform.resources.Resource", "platform.actors.Actor", "platform.environments.Environment"]
-srcDir = "."
-moreLeanArgs = ["-DwarningAsError=true"]

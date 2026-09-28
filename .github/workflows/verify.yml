@@ -18,11 +18,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: leanprover/lean-action@50fcf42d2e460296f1a34b402e990d1b24f8b596 # v1
-        with:
-          auto-config: false
-          use-mathlib-cache: false
-          use-github-cache: false
       - run: npm ci --ignore-scripts
       - run: npm run setup:formal
       - run: npm run check

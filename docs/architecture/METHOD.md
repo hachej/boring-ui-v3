@@ -13,10 +13,10 @@ The working loop is:
 
 Static dependency rules suit import checks. Ordering, stale state and revocation suit state exploration. Runtime behavior needs runtime evidence. General proofs become useful when the semantics are stable enough to justify a theorem. Safety and eventual progress are separate questions; uncontrolled providers cannot promise unconditional completion.
 
-The canonical evidence rule is [PLATFORM-5](../../platform/INVARIANTS.md#platform-5--evidence-matches-the-claim). The [formal model scope](../../platform/formal/README.md) records bounds and assumptions; this page does not define another verification protocol.
+The canonical evidence rule is [BORING-5](../../INVARIANTS.md#boring-5--evidence-matches-the-claim). [FORMAL.md](FORMAL.md) records the bounds and assumptions of the models; this page does not define another verification protocol.
 
 ## Influences
 
 Lauren Tan's Dune examples and the Poteto workflow motivated obvious ownership, enforced boundaries and moving recurring review corrections into durable checks. [Source material](../sources/poteto/README.md) records that influence; it does not supply the platform's vocabulary.
 
-[Boring's design choices](PLATFORM.md) apply this method; consumer rationales live in the consumer's own repository, not here. Executable contracts and normative laws live under `platform/`.
+[The library's design](LIBRARY.md) applies this method; an application's own rationale lives in that application. Executable contracts and laws live under `packages/`.

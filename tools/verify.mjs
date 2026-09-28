@@ -3,7 +3,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { root, runModel, toolchain } from "./formal.mjs";
 
-export const owners = ["platform", "jobs", "resources", "actors", "environments"];
+export const owners = ["boring", "files", "agent", "chat"];
+const ownerDir = owner => owner === "boring" ? "." : `packages/${owner}`;
 export function validateRegistry(registry, location = "registry") {
   if (registry.version !== 1 || !registry.invariants || typeof registry.invariants !== "object") throw new Error(`${location}: invalid registry`);
   for (const [id, invariant] of Object.entries(registry.invariants)) {
@@ -23,16 +24,17 @@ export function validateRegistry(registry, location = "registry") {
 function invariantDocuments(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? invariantDocuments(file) : entry.name === "INVARIANTS.md" ? [file] : [];
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : invariantDocuments(file);
+    return entry.name === "INVARIANTS.md" ? [file] : [];
   });
 }
 export function loadRegistries(directory = root) {
   const result = [], definitions = new Map();
   for (const owner of owners) {
-    const prefix = path.join(directory, owner === "platform" ? "platform" : `platform/${owner}`);
+    const prefix = path.join(directory, ownerDir(owner));
     const registry = JSON.parse(readFileSync(path.join(prefix, "VERIFY.json"), "utf8"));
     validateRegistry(registry, owner);
-    const documents = owner === "platform" ? [path.join(prefix, "INVARIANTS.md")] : invariantDocuments(prefix);
+    const documents = owner === "boring" ? [path.join(prefix, "INVARIANTS.md")] : invariantDocuments(prefix);
     const declared = new Set();
     for (const file of documents) {
       for (const match of readFileSync(file, "utf8").matchAll(/^#{2,3} ([A-Z]+(?:-[A-Z]+)*-\d+) —/gm)) {
@@ -65,7 +67,7 @@ export function verify(selection = "all") {
             if (verifier.kind === "model") result = runModel(verifier.model);
             else {
               const [bin, ...args] = verifier.command;
-              const execution = spawnSync(bin === "node" ? process.execPath : bin, args, { cwd: root, encoding: "utf8", timeout: 60000 });
+              const execution = spawnSync(bin === "node" ? process.execPath : bin, args, { cwd: root, encoding: "utf8", timeout: 120000, shell: bin === "npm" });
               result = { status: execution.status, output: (execution.stdout ?? "") + (execution.stderr ?? "") + (execution.error?.message ?? "") };
             }
           } catch (error) { result = { status: 1, output: error.message }; }

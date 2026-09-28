@@ -6,13 +6,9 @@ import { spawnSync } from "node:child_process";
 import { root, toolchain, runModel } from "../../tools/formal.mjs";
 
 const mutations = [
-  ["execution", text => text.replace("  /\\ observed = revision\n", ""), "NoStaleCommit"],
-  ["execution", text => text.replace("  /\\ ~revoked\n", ""), "NoRevokedCommit"],
-  ["resource-commit", text => text.replace("  /\\ baseRevision[w] = revision\n", ""), "NoStaleCommit"],
-  ["job-lifecycle", text => text.replace("  /\\ \\A c \\in Created : child[c] = \"completed\"\n", ""), "NoPrematureParentCompletion"],
-  ["job-lifecycle", text => text.replace("  /\\ parent = \"pending\"\n  /\\ child' = [child EXCEPT ![c] = \"pending\"]", "  /\\ child' = [child EXCEPT ![c] = \"pending\"]"), "FrozenComposition"],
-  ["job-lifecycle", text => text.replace("  /\\ child[c] = \"pending\"\n  /\\ parent = \"running\"\n", "  /\\ child[c] = \"pending\"\n"), "ChildRunsUnderRunningParent"],
-  ["job-lifecycle", text => text.replace("  /\\ child' = [c \\in Children |-> IF child[c] \\in {\"pending\", \"running\"} THEN \"cancelled\" ELSE child[c]]\n", "  /\\ UNCHANGED child\n"), "TerminalParentResolvesChildren"]
+  ["agent-commit", text => text.replace("  /\\ observed = revision\n", ""), "NoStaleCommit"],
+  ["agent-commit", text => text.replace("  /\\ ~revoked\n", ""), "NoRevokedCommit"],
+  ["files-commit", text => text.replace("  /\\ baseRevision[w] = revision\n", ""), "NoStaleCommit"]
 ];
 
 for (const [name, mutate, invariant] of mutations) {
@@ -40,7 +36,7 @@ for (const [name, mutate, invariant] of mutations) {
 
 
 test("missing required TLC fails the CLI instead of skipping verification", () => {
-  const result = spawnSync(process.execPath, ["bin/boring.mjs", "model", "execution"], {
+  const result = spawnSync(process.execPath, ["bin/boring.mjs", "model", "agent-commit"], {
     cwd: root, encoding: "utf8", env: { ...process.env, TLA2TOOLS_JAR: path.join(root, ".cache/missing-tlc.jar") }
   });
   assert.equal(result.status, 1);

@@ -1,0 +1,9 @@
+{
+  "name": "@boring/agent",
+  "version": "0.0.0",
+  "description": "A durable agent loop an application mounts in its own backend: threads, runs, admitted tools, receipts, questions and approvals, over the files contract.",
+  "type": "module",
+  "private": true,
+  "exports": { ".": "./src/index.ts", "./wire": "./src/wire.ts" },
+  "dependencies": { "@boring/files": "*" }
+}

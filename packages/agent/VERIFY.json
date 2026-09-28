@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "invariants": {
+    "AGENT-1": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "A run interrupted by a process exit is resumed or failed from SQLite and no receipted effect is repeated.",
+          "reason": "arrives with the runtime: node --test test/agent/durability.test.ts"
+        }
+      ]
+    },
+    "AGENT-2": {
+      "verifiers": [
+        {
+          "kind": "model",
+          "model": "agent-commit",
+          "claim": "Start, admission, observation, a concurrent human write, revocation, cancellation and commit interleave freely; a receipt never arises from stale, revoked or stopped work."
+        },
+        {
+          "kind": "pending",
+          "claim": "A mutating tool with a forged actor, thread or scope in its arguments is refused before the handler runs.",
+          "reason": "arrives with the runtime: node --test test/agent/admission.test.ts"
+        }
+      ]
+    },
+    "AGENT-3": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "The tool set offered to the model equals declared tools intersected with host-allowed tools, and changes only when either changes.",
+          "reason": "arrives with the runtime: node --test test/agent/tools.test.ts"
+        }
+      ]
+    },
+    "AGENT-4": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Each tool effect appears in the receipt log with actor, thread, run, tool and revisions, and a run's transcript alone changes nothing.",
+          "reason": "arrives with the runtime: node --test test/agent/attribution.test.ts"
+        }
+      ]
+    },
+    "AGENT-5": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "ask and approval rows accept one answer by compare-and-set from the session's actor; an approval for revision n does not cover n+1.",
+          "reason": "arrives with the runtime: node --test test/agent/decisions.test.ts"
+        }
+      ]
+    },
+    "AGENT-6": {
+      "verifiers": [
+        {
+          "kind": "model",
+          "model": "agent-commit",
+          "claim": "No receipt is taken after revocation or cancellation in any interleaving."
+        },
+        {
+          "kind": "pending",
+          "claim": "Cancelling mid-run stops before the next effect; committed effects remain; a late commit is rejected.",
+          "reason": "arrives with the runtime: node --test test/agent/stop.test.ts"
+        }
+      ]
+    },
+    "AGENT-7": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "No credential string reaches a definition, a tool result, a thread record or the wire.",
+          "reason": "arrives with the runtime: node --test test/agent/credentials.test.ts"
+        }
+      ]
+    },
+    "AGENT-8": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Every authority decision in the loop is a call into the Host contract; a host that answers no is obeyed at the next operation.",
+          "reason": "arrives with the runtime: node --test test/agent/host.test.ts"
+        }
+      ]
+    },
+    "AGENT-9": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Changing the host's answers for an actor changes the tools, mounts and answer rights the loop offers; the loop contains no role string comparison.",
+          "reason": "arrives with the runtime: node --test test/agent/host.test.ts"
+        }
+      ]
+    },
+    "AGENT-10": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Each model call writes one usage row attributed to actor, thread, run, agent and model, and the host receives it before the next step; a host that refuses stops the run.",
+          "reason": "arrives with the runtime: node --test test/agent/usage.test.ts"
+        }
+      ]
+    }
+  }
+}

@@ -4,7 +4,7 @@
 // run built from the same controls. `boring --help` is the canonical command surface.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { checkArchitecture } from "../platform/check.mjs";
+import { checkArchitecture } from "../tools/check.mjs";
 import { root, runModel } from "../tools/formal.mjs";
 import { loadRegistries, verify } from "../tools/verify.mjs";
 
@@ -13,11 +13,11 @@ const HELP = `boring <command> [args] [--json]
 Structure and evidence
   check                              architecture and evidence-registry structure
   verify [all|owner]                 run the evidence registered for each invariant
-  model <name>                       one TLA+ model: execution | job-lifecycle | resource-commit
+  model <name>                       one TLA+ model: files-commit | agent-commit
   features                           the feature map index (what to drive, how a person reaches it)
-  nouns                              the platform's nouns
+  packages                           the packages and their allowed dependencies
 
-Environment (one isolated hub per checkout: derived ports, own data, own headless browser)
+Environment (one isolated dev host per checkout: derived ports, own data, own headless browser)
   doctor                             toolchain, credentials, and whether the running instance is fresh and ours
   env up [--seed s] [--model scripted|codex|<spec>] [--think-ms n] [--no-browser] [--chat-bundle dir] [--restart] [--keep-data]
   env info | env seeds | env down [--clean]
@@ -57,7 +57,7 @@ const print = (value, human) => { if (opts.json || human === undefined) console.
 
 const needsHost = ["env", "run", "smoke", "e2e", "drive", "send", "wait-settle", "chat", "tool", "select", "state", "log", "trace", "screenshot", "snapshot", "click", "type", "press", "eval", "reload"];
 try {
-  if (needsHost.includes(command) && !existsSync(path.join(root, "host/run.ts"))) throw new Error(`${command}: no host runtime in this checkout yet. It arrives with layer 2 (docs/architecture/ROADMAP.md); check, verify, model, nouns, features and doctor work now.`);
+  if (needsHost.includes(command) && !existsSync(path.join(root, "packages/agent/src/host/run.ts"))) throw new Error(`${command}: no dev host in this checkout yet. It arrives with step 2 of docs/architecture/ROADMAP.md; check, verify, model, packages, features and doctor work now.`);
   const control = ["doctor", "env", "send", "wait-settle", "chat", "tool", "select", "state", "log", "trace", "screenshot", "snapshot", "click", "type", "press", "eval", "reload"].includes(command) ? await import("../tools/control.mjs") : null;
   const env = () => control.requireEnv();
   switch (command) {
@@ -65,12 +65,12 @@ try {
       loadRegistries();
       const errors = await checkArchitecture(root);
       if (errors.length) throw new Error(errors.join("\n"));
-      console.log("Architecture and evidence registry checks passed");
+      console.log("Package architecture and evidence registry checks passed");
       break;
     }
     case "verify": if (!verify(opts._[0] ?? "all")) process.exitCode = 1; break;
     case "model": { const result = runModel(opts._[0]); process.stdout.write(result.output); if (result.status !== 0) process.exitCode = 1; break; }
-    case "nouns": console.log(JSON.parse(readFileSync(path.join(root, "platform/ARCHITECTURE.json"), "utf8")).nouns.join("\n")); break;
+    case "packages": { const p = JSON.parse(readFileSync(path.join(root, "ARCHITECTURE.json"), "utf8")).packages; console.log(Object.entries(p).map(([n, r]) => `${n} -> ${[...r.dependsOn, ...r.typeOnlyDependsOn.map(d => `${d} (types)`)].join(", ") || "nothing"}`).join("\n")); break; }
     case "features": process.stdout.write(readFileSync(path.join(root, ".agent/skills/verify-boring/features/README.md"), "utf8")); break;
     case "doctor": {
       const { doctor } = await import("../tools/drive.mjs");

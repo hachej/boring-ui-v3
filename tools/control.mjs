@@ -1,6 +1,6 @@
 // `boring` as a remote control for an isolated, running hub: bring one up for this checkout (derived ports and data,
 // its own headless browser), seed it into a known state, then act on it and inspect it the way a person would —
-// send in the chat, wait for things to settle, click and type in the page, read the effect log and a Job's
+// send in the chat, wait for things to settle, click and type in the page, read the receipts and a run's
 // conversations. Agents compose these per change, guided by the feature map; there are no canned test scripts here.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -48,7 +48,7 @@ export async function envUp(opts) {
   if (opts.fresh !== false) rmSync(dataDir, { recursive: true, force: true });
   const appDir = path.resolve(opts.app ?? path.join(root, "test/fixtures/apps/notes"));
   const bundle = opts["chat-bundle"] ?? process.env.BORING_CHAT_BUNDLE;
-  const args = ["--no-warnings", "--import=tsx", path.join(root, "host/run.ts"), "--app", appDir, "--data", dataDir, "--host", hostname, "--port", String(opts.port ?? ports.hub),
+  const args = ["--no-warnings", "--import=tsx", path.join(root, "packages/agent/src/host/run.ts"), "--app", appDir, "--data", dataDir, "--host", hostname, "--port", String(opts.port ?? ports.hub),
     "--person", opts.person ?? "person", "--model", opts.model ?? "scripted",
     ...(opts["think-ms"] ? ["--think-ms", String(opts["think-ms"])] : []), ...(bundle ? ["--chat-bundle", path.resolve(bundle)] : [])];
   const logFile = path.join(stateDir, "host.log");
@@ -212,7 +212,7 @@ export const reload = env => withPage(env, async page => { await page.reload({ w
 function newestSource() {
   let newest = 0, file = null;
   const walk = dir => { if (!existsSync(dir)) return; for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (/\.(ts|mjs|js|json|html|md|sql)$/.test(entry.name)) { const t = statSync(full).mtimeMs; if (t > newest) { newest = t; file = full; } } } };
-  for (const dir of ["platform", "infra", "host", "experiences", "jobs", "test/fixtures"]) walk(path.join(root, dir));
+  for (const dir of ["packages", "examples"]) walk(path.join(root, dir));
   return { newest, file };
 }
 export async function instanceRows() {
