@@ -9,3 +9,7 @@ Standalone project for the next boring-ui iteration. This repository starts with
 - [Agent identities / process optimization](docs/explorations/process-optimization.md). Source: [`hachej/boring-hub` at `7e0fd8b`](https://github.com/hachej/boring-hub/commit/7e0fd8b).
 
 These are imported explorations, not a consolidated v3 architecture or implemented features. References inside them to paths such as `src/`, `process.md`, and `docs/ARCHITECTURE.md` refer to the original `boring-hub` codebase until explicitly adapted here.
+
+## Plans
+
+- [Hub shell](docs/plans/hub-shell.md) — layout first, in the hub, with shadcn and Base UI. Viewers from this repo are consumed later. Draft.
