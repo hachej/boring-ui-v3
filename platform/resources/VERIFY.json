@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "invariants": {
+    "RESOURCE-1": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Provider namespaces and address tuples produce distinct identities; a storage namespace cannot change on reopen.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "RESOURCE-2": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "The SQLite provider rejects blind/stale mutation and preserves revisions through delete/recreate.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "model",
+          "model": "resource-commit",
+          "claim": "Bounded two-writer model rejects stale writes, including delete/recreate."
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "RESOURCE-3": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Implementation evidence remains unverified.",
+          "reason": "Runtime/provider acceptance for this law is not implemented in the conceptual core."
+        }
+      ]
+    },
+    "FS-2": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Observed file references carry the stored identity and revision used by subsequent mutations.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "FS-3": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Concurrent CAS admits one writer; blind and stale writes leave stored content unchanged.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "A streaming writer supplies the revision it last committed; a human edit between two segments conflicts and is neither overwritten nor absorbed.",
+          "reason": "runtime evidence returns with layer 3 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/dictation.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "FS-4": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Create-existing and mixed create/update preconditions fail without overwriting.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "FS-5": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Delete is revision-bound and recreation cannot reuse the prior generation.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "FS-6": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Reopening the provider preserves the same file authority; cross-adapter evidence is owned by PLATFORM-4.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "FS-7": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "A failed effect receipt rolls back its file mutation in the same SQLite transaction.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/filesystem.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Receipts are rows of one effect log written inside the mutation's transaction; a failing log write rolls the mutation back.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/log.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Live celld deployment and historical file-content retention remain deferred."
+        }
+      ]
+    },
+    "DATABASE-1": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Every execute is one transaction advancing the revision by one with its receipt; a failing statement leaves rows, revision and log untouched; expectedRevision makes a read-modify-write stale instead of lost.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/database.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "UC2/UC2b: a person editing the app while agents write loses nothing; a stale pane edit is refused and succeeds after a fresh look.",
+          "reason": "runtime evidence returns with layer 3 (docs/architecture/ROADMAP.md): node --import=tsx --test test/scenarios/workroom.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "End to end on a running hub: a stale rename is refused and nothing is lost.",
+          "reason": "runtime evidence returns with layer 3 (docs/architecture/ROADMAP.md): node bin/boring.mjs e2e"
+        },
+        {
+          "kind": "pending",
+          "claim": "Remaining acceptance is deferred.",
+          "reason": "Table-level grants, migrations applied by the host and a real app's schema remain unverified."
+        }
+      ]
+    },
+    "DATABASE-2": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "Manifest tools validate input against their declared schema and are admitted on the database before the app handler runs; a manifest cannot redeclare a platform tool.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/database.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "The model loop hands the model exactly the declared tools with their metadata; an invalid call is reported as a tool error and never reaches the handler.",
+          "reason": "runtime evidence returns with layer 2 (docs/architecture/ROADMAP.md): node --import=tsx --test test/primitives/loop.test.ts"
+        },
+        {
+          "kind": "pending",
+          "claim": "End to end on a running hub: an app tool call outside its declared schema is refused before the app handler runs.",
+          "reason": "runtime evidence returns with layer 3 (docs/architecture/ROADMAP.md): node bin/boring.mjs e2e"
+        }
+      ]
+    }
+  }
+}

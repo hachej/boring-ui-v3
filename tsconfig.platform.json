@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "platform/**/*.ts",
+    "jobs/**/*.ts",
+    "experiences/**/*.ts",
+    "infra/**/*.ts",
+    "test/primitives/**/*.ts",
+    "test/scenarios/**/*.ts",
+    "test/flue/**/*.ts",
+    "host/**/*.ts",
+    "test/fixtures/**/*.ts"
+  ]
+}

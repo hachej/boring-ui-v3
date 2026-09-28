@@ -1,0 +1,21 @@
+{
+  "name": "boring",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node bin/boring.mjs check",
+    "verify": "node bin/boring.mjs verify all",
+    "test:architecture": "node --test test/architecture/*.test.mjs",
+    "test:formal": "node --test test/formal/*.test.mjs",
+    "setup:formal": "node tools/setup-formal.mjs",
+    "typecheck": "tsc -p tsconfig.platform.json",
+    "test:lean": "lake build"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.15",
+    "playwright-core": "1.57.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  },
+  "description": "The Boring platform core: nouns, laws, formal models, evidence registries and the verification CLI."
+}
