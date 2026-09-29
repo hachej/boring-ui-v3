@@ -1,8 +1,3 @@
-"use client"
-
-// Boring UI registry: conflict-banner. Shown when a save was refused because the file changed since it was read
-// (VIEWERS-5). The person decides: reload (discard theirs), overwrite (keep theirs, over the version they now saw),
-// or keep editing. Nothing is overwritten without that choice.
 import { TriangleAlert } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"

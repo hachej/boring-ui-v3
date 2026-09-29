@@ -35,7 +35,7 @@ Walk this map top to bottom for a broad regression, then finish with the journey
 - [receipts-and-usage](receipts-and-usage.md): what a run touched and what it cost, attributed.
 - [chat-page](chat-page.md): the page in a browser: send, reply, stop, reload.
 - [registry](registry.md): the shadcn registry, its install path, and the host built from it (`env up --example registry-host`).
-- [file-tree](file-tree.md), [markdown-editor](markdown-editor.md), [image-viewer](image-viewer.md): the viewers, for the person and through their tools for the agent.
+- [file-tree](file-tree.md), [markdown-editor](markdown-editor.md), [image-viewer](image-viewer.md), [canvas](canvas.md): the viewers, for the person and through their tools for the agent.
 
 ## Multi-surface journeys
 

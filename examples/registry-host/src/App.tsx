@@ -9,6 +9,7 @@ import { isImage, type AgentBinding, type TreeEntry } from "@boring/viewers"
 import { FileTree } from "@/components/file-tree"
 import { MarkdownEditor } from "@/components/markdown-editor"
 import { ImageViewer } from "@/components/image-viewer"
+import { Canvas } from "@/components/canvas"
 import { Chat } from "@/components/chat"
 import { Button } from "@/components/ui/button"
 
@@ -33,6 +34,9 @@ export function App() {
   const agent: AgentBinding | undefined = useMemo(() => (thread ? { client, thread } : undefined), [client, thread])
   const onOpen = useCallback((entry: TreeEntry) => setOpen(entry.address), [])
   const readOnly = open?.startsWith("/code/") ?? false
+  // The tldraw licence key is the application's runtime config (TLDRAW_LICENSE_KEY on the server), never bundled.
+  const [licenseKey, setLicenseKey] = useState<string>()
+  useEffect(() => { fetch("/config.json").then(r => r.json()).then(c => setLicenseKey(c.tldrawLicenseKey ?? undefined)).catch(() => {}) }, [])
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -50,7 +54,8 @@ export function App() {
           {!open && <p className="grid h-full place-items-center text-sm text-muted-foreground">Pick a file in the tree, or ask the assistant to open one.</p>}
           {open && /\.(md|txt)$/i.test(open) && <MarkdownEditor key={open} files={files} address={open} readOnly={readOnly} agent={agent} />}
           {open && isImage(open) && <ImageViewer key={open} files={files} address={open} agent={agent} />}
-          {open && !/\.(md|txt)$/i.test(open) && !isImage(open) && <p className="grid h-full place-items-center text-sm text-muted-foreground">No viewer for {open} yet.</p>}
+          {open && /\.tldraw$/i.test(open) && <Canvas key={open} files={files} address={open} readOnly={readOnly} agent={agent} licenseKey={licenseKey} />}
+          {open && !/\.(md|txt|tldraw)$/i.test(open) && !isImage(open) && <p className="grid h-full place-items-center text-sm text-muted-foreground">No viewer for {open} yet.</p>}
         </section>
         <aside className="min-h-0 border-l p-3"><Chat conversation="chat" client={client} thread={initialThread} onThread={onThread} placeholder="Ask the assistant" /></aside>
       </main>

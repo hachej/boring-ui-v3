@@ -12,3 +12,4 @@ export { createFileTree, useFileTree, type FileTree, type FileTreeOptions, type 
 export { createMarkdownDocument, useMarkdownDocument, type MarkdownDocument, type MarkdownOptions, type UseMarkdownOptions, type MarkdownState, type Proposal, type Selection } from "./markdown.ts";
 export type { Effect, FileProvider, Receipt } from "@boring/files/web";
 export { createImage, useImage, isImage, IMAGE_TYPES, ZOOM, type ImageViewer, type ImageOptions, type UseImageOptions, type ImageState, type Annotation } from "./image.ts";
+export { createCanvasDocument, useCanvasDocument, serializeCanvas, parseCanvas, CANVAS_FORMAT, CANVAS_COLORS, CANVAS_TYPES, CANVAS_GEO, type CanvasDocument, type CanvasEditor, type CanvasOptions, type UseCanvasOptions, type CanvasState, type CanvasShape, type NewShape, type ShapeUpdate } from "./canvas.ts";

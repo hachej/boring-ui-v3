@@ -1,6 +1,6 @@
 # Registry
 
-The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) and the application built from it, `examples/registry-host`: its components under `src/components/` were installed with `npx shadcn add` from a local build, and CI reinstalls them and diffs. Items: file-tree, conflict-banner, markdown-editor, image-viewer, chat, chat-message, tool-call, ask-card, approval-card. Laws: VIEWERS-1..7, CHAT-5.
+The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) and the application built from it, `examples/registry-host`: its components under `src/components/` were installed with `npx shadcn add` from a local build, and CI reinstalls them and diffs. Items: file-tree, conflict-banner, markdown-editor, image-viewer, canvas, chat, chat-message, tool-call, ask-card, approval-card. Laws: VIEWERS-1..7, CHAT-5.
 
 ## Sub-features
 
