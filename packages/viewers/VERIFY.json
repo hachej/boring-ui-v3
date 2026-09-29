@@ -11,6 +11,7 @@
             "--test",
             "test/viewers/file-tree.test.ts",
             "test/viewers/markdown.test.ts",
+            "test/viewers/workspace.test.ts",
             "test/viewers/canvas.test.ts",
             "test/viewers/image.test.ts",
             "test/viewers/bridge.test.ts"
@@ -27,7 +28,7 @@
             "test/registry/browser.test.ts"
           ],
           "timeout": 600,
-          "claim": "In a browser on the registry host (items installed with shadcn add): the scripted agent reads and proposes through the editor's tools, the person accepts and the save carries the provider's receipt; a stale save shows the conflict banner and keeps both versions; the tree shows a file the agent wrote; the agent zooms and highlights the image; the agent draws on the tldraw canvas and the .tldraw file carries the shapes at the receipt's revision; /code opens read-only; light and dark screenshots of every item."
+          "claim": "In a browser on the registry host (items installed with shadcn add): the agent opens a markdown file in the dockview workspace through workspace_open_panel and the layout is saved as the person's file and restored after a reload; the scripted agent reads and proposes through the editor's tools, the person accepts and the save carries the provider's receipt; a stale save shows the conflict banner and keeps both versions; the tree shows a file the agent wrote; the agent zooms and highlights the image; the agent draws on the tldraw canvas and the .tldraw file carries the shapes at the receipt's revision; /code opens read-only; light and dark screenshots of every item."
         }
       ]
     },
@@ -57,6 +58,7 @@
             "--test",
             "test/viewers/file-tree.test.ts",
             "test/viewers/markdown.test.ts",
+            "test/viewers/workspace.test.ts",
             "test/viewers/canvas.test.ts",
             "test/viewers/image.test.ts"
           ],
@@ -87,6 +89,7 @@
             "--disable-warning=ExperimentalWarning",
             "--test",
             "test/viewers/markdown.test.ts",
+            "test/viewers/workspace.test.ts",
             "test/viewers/canvas.test.ts"
           ],
           "claim": "A save after another writer changed the file is a conflict that keeps the buffer and the newer file; overwrite writes only at the revision the person has now seen; apply_patch at an old revision is stale and with unsaved edits is a conflict. On the canvas: a stale save of the person's drawing is a conflict; update_shapes at an old version is stale and over unsaved changes a conflict."

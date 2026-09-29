@@ -15,11 +15,11 @@ const { state, actions, tools } = useMarkdownDocument({ files, address: "/worksp
 // tools:   the same operations as ViewerTools; with `agent` they are registered as page commands `markdown_*`
 ```
 
-Every hook also exists without React (`createFileTree`, `createMarkdownDocument`, `createImage`, `createCanvasDocument`) for tests and scripts.
+Every hook also exists without React (`createFileTree`, `createMarkdownDocument`, `createImage`, `createCanvasDocument`, `createWorkspaceLayout`) for tests and scripts.
 
 ## The tools
 
-A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `markdown`, `image`, `canvas` by default); the agent's definition lists the ones it may request under `ui:` and the host allows them by name. Each result is one of `applied` (local), `proposed` (waits for the person), `committed` (with the provider's receipt), `stale`, `conflict`, `denied`, `unavailable` (VIEWERS-3).
+A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `markdown`, `image`, `canvas`, `workspace` by default); the agent's definition lists the ones it may request under `ui:` and the host allows them by name. Each result is one of `applied` (local), `proposed` (waits for the person), `committed` (with the provider's receipt), `stale`, `conflict`, `denied`, `unavailable` (VIEWERS-3).
 
 | Hook | Tool | Effect | Result |
 |---|---|---|---|
@@ -38,6 +38,10 @@ A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `mar
 | | `select` | local | `applied`, `denied` for an unknown id |
 | | `create_shapes` | write (geo, text, note; optional `version` guard), saved at the revision read | `committed` + receipt and the new ids |
 | | `update_shapes` | write (by id, bound to the `version` read), saved | `committed` + receipt; `stale` at another version; `conflict` over the person's unsaved changes |
+| `useWorkspaceLayout` | `open_panel(target, kind?)` | local (focuses an open panel instead of duplicating it) | `applied`, `denied` for a kind the app did not register |
+| | `close_panel`, `focus_panel` | local | `applied`, `denied` for an unknown panel |
+| | `list_panels` | read | `applied` with panels and the active one |
+| | (the layout file) | write, autosaved at the revision read (`/workspace/.boring/layout.json` in the example) | `committed` + receipt; a stale save sets `conflict` |
 
 A read-only viewer (`readOnly`, or a read-only root of the tree) gets a provider that refuses every mutation and offers no `write` tool (VIEWERS-2). Saving writes at the revision last read; a stale save sets `state.conflict` for the conflict banner and changes nothing (VIEWERS-5).
 
@@ -48,3 +52,7 @@ The file contract carries text. An SVG shows from its text; a raster stored as a
 ## The canvas and its engine
 
 `useCanvasDocument` never imports a drawing engine: the component attaches one through the `CanvasEditor` adapter (shapes, selection, create, update, snapshot, load, the person's changes). The registry's canvas item attaches tldraw. The file is `{ "format": "boring-canvas", "version": 1, "document": <engine snapshot> }`.
+
+## One stream per page
+
+Every bound viewer registers its own page instance, but they share one live stream of the thread (`followThread`): a browser holds about six HTTP/1.1 connections per host, and a stream per viewer would starve the page's own requests.

@@ -3,6 +3,8 @@
 //
 //   "list"                      tree_list /workspace/notes
 //   "open <address>"            tree_select <address>                 (the tree opens it for the person)
+//   "show <address>"            workspace_open_panel <address>        (a panel in the dockview workspace)
+//   "panels" | "close"          workspace_list_panels (→ workspace_close_panel on the first)
 //   "go to <heading>"           markdown_go_to_heading
 //   "risk" | "propose"          markdown_read_document → markdown_propose_patch (a diff the person accepts)
 //   "apply"                     markdown_read_document → markdown_apply_patch at the revision read
@@ -26,6 +28,19 @@ export const scriptedModel = {
     const lower = asked.toLowerCase();
     const outcome = r => (r && typeof r === "object" && "outcome" in r ? r.outcome : typeof r === "string" ? r : JSON.stringify(r));
 
+    if (/\bshow\b/.test(lower)) {
+      const address = /\/(workspace|code)\/[\w./ -]+/.exec(asked)?.[0]?.trim() ?? "/workspace/notes/plan.md";
+      if (!has("workspace_open_panel")) return say("There is no workspace on the page.");
+      if (!results.length) return calls(["workspace_open_panel", { target: address }]);
+      return say(`Showing ${address} in the workspace: ${outcome(results[0])}.`);
+    }
+    if (/\bpanels\b|\bclose\b/.test(lower)) {
+      if (!has("workspace_list_panels")) return say("There is no workspace on the page.");
+      if (!results.length) return calls(["workspace_list_panels", {}]);
+      const panels = results[0]?.detail?.panels ?? [];
+      if (/close/.test(lower) && results.length === 1 && panels.length) return calls(["workspace_close_panel", { id: panels[0].id }]);
+      return say(/close/.test(lower) ? `Closed ${panels[0]?.title ?? "nothing"}: ${outcome(results[1])}.` : `Open panels: ${panels.map(p => p.title).join(", ") || "none"}.`);
+    }
     if (/\bopen\b/.test(lower)) {
       const address = /\/(workspace|code)\/[\w./ -]+/.exec(asked)?.[0]?.trim() ?? "/workspace/notes/plan.md";
       if (!has("tree_select")) return say("There is no file tree on the page to open it with.");

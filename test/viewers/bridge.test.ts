@@ -99,3 +99,21 @@ test("VIEWERS-4: after the viewer moves to another document, a request made for 
   assert.equal(navigation()?.heading.text, "B");
   await h.unmount();
 });
+
+test("the viewers of one page share one live stream per thread (a browser has few connections per host)", async () => {
+  let follows = 0, aborted = 0;
+  const client: ChatClient = {
+    say: async () => { throw new Error("unused"); }, cancel: async () => { throw new Error("unused"); }, run: async () => { throw new Error("unused"); }, job: async () => { throw new Error("unused"); },
+    createThread: async () => ({ id: "t", createdAt: "" }),
+    async *follow(_scope, options) { follows++; await new Promise<void>(r => options?.signal?.addEventListener("abort", () => { aborted++; r(); })); yield* []; },
+    async registerUi(_t, page, registration) { return { page, commands: registration.commands }; },
+    async unregisterUi() {}, async uiRegistrations() { return []; },
+    async answerUi() { throw new Error("unused"); },
+  };
+  const files = memoryProvider({ seed: { "a.md": "# A", "b.md": "# B", "c.md": "# C" } });
+  const views = await Promise.all(["a", "b", "c"].map(n => renderHook(p => useMarkdownDocument(p), { files, address: `/workspace/${n}.md`, namespace: n, agent: { client, thread: "t" } })));
+  for (const v of views) await v.settle(20);
+  assert.equal(follows, 1, "one stream for three viewers");
+  for (const v of views) await v.unmount();
+  assert.equal(aborted, 1, "closed when the last viewer leaves");
+});

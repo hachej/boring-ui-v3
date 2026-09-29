@@ -31,9 +31,13 @@ function chromePath(): string | null {
 
 async function say(page: Page, text: string) {
   const before = await page.locator("[data-boring=message][data-role=agent]").count();
+  const people = await page.locator("[data-boring=message][data-role=person]").count();
   await page.fill("[data-boring=composer] textarea", text);
-  await page.press("[data-boring=composer] textarea", "Enter");
-  await page.locator("[data-boring=message][data-role=agent]").nth(before).waitFor({ timeout: 20000 });
+  await page.click("[data-boring=composer] button[type=submit]");
+  try { await page.locator("[data-boring=message][data-role=person]").nth(people).waitFor({ timeout: 10000 }); }
+  catch (error) { await page.screenshot({ path: path.join(shots, `failed-send-${text.replace(/\W+/g, "-")}.png`) }); throw new Error(`"${text}" never reached the transcript (composer: "${await page.inputValue("[data-boring=composer] textarea")}"): ${(error as Error).message}`); }
+  try { await page.locator("[data-boring=message][data-role=agent]").nth(before).waitFor({ timeout: 20000 }); }
+  catch (error) { await page.screenshot({ path: path.join(shots, `failed-${text.replace(/\W+/g, "-")}.png`) }); throw error; }
 }
 const shot = (page: Page, selector: string, name: string) => page.locator(selector).first().screenshot({ path: path.join(shots, `${name}.png`) });
 
@@ -52,10 +56,20 @@ test("registry-host: the installed items work for the person and the agent, in l
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
 
-  await page.goto(`${server.url}/?open=/workspace/notes/plan.md`);
-  await page.locator(".boring-prose h2").first().waitFor();
+  await page.goto(`${server.url}/`);
+  await page.locator("[data-boring=workspace]").waitFor();
   await page.waitForFunction(() => location.hash.includes("thread="));
   const thread = new URL(page.url()).hash.split("thread=")[1]!;
+  await page.waitForTimeout(500); // the viewers register their tools once the chat has its thread
+
+  await t.test("the agent opens a markdown file in the dockview workspace through workspace_open_panel", async () => {
+    await say(page, "show /workspace/notes/plan.md");
+    await page.locator("[data-boring=panel][data-panel='markdown:/workspace/notes/plan.md'] .boring-prose h2").first().waitFor();
+    assert.match(await page.locator("[data-boring=tool][data-outcome=applied]").last().innerText(), /workspace_open_panel/);
+    await page.waitForTimeout(1200); // autosave of the layout
+    const layout = JSON.parse((await workspace.read(at(".boring/layout.json"))).content);
+    assert.deepEqual(layout.panels.map((p: { id: string }) => p.id), ["markdown:/workspace/notes/plan.md"], "the layout is the person's file");
+  });
   await shot(page, "[data-boring=file-tree]", "file-tree-light");
   await shot(page, "[data-boring=markdown-editor]", "markdown-editor-light");
 
@@ -123,6 +137,16 @@ test("registry-host: the installed items work for the person and the agent, in l
     await shot(page, "[data-boring=canvas]", "canvas-light");
   });
 
+  await t.test("the workspace lists its panels for the agent and restores them after a reload", async () => {
+    await say(page, "panels");
+    assert.match(await page.locator("[data-boring=message][data-role=agent]").last().innerText(), /plan\.md.*diagram\.svg.*plan\.tldraw/);
+    await shot(page, "[data-boring=workspace]", "workspace-light");
+    await page.waitForTimeout(1200);
+    await page.reload();
+    await page.locator(".dv-tab").nth(2).waitFor();
+    assert.deepEqual(await page.locator(".dv-tab").allInnerTexts(), ["plan.md", "diagram.svg", "plan.tldraw"]);
+  });
+
   await t.test("/code opens read-only: no save, no write tools", async () => {
     await page.click("[data-path='/code/README.md']");
     await page.locator("[data-boring=markdown-editor] :text('read-only')").first().waitFor();
@@ -148,6 +172,7 @@ test("registry-host: the installed items work for the person and the agent, in l
     await dark.goto(`${server.url}/?theme=dark&open=/workspace/boards/plan.tldraw#thread=${thread}`);
     await dark.locator("[data-boring=canvas] .tl-shape").first().waitFor();
     await shot(dark, "[data-boring=canvas]", "canvas-dark");
+    await shot(dark, "[data-boring=workspace]", "workspace-dark");
     await dark.screenshot({ path: path.join(shots, "registry-host-dark.png") });
     await dark.close();
   });

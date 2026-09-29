@@ -223,6 +223,56 @@
       ]
     },
     {
+      "name": "workspace",
+      "type": "registry:component",
+      "title": "Workspace",
+      "description": "A dockview workspace whose panels are the other items. Open panels, the active one and the layout are persisted per person as a file. Tools: workspace_open_panel(target, kind?), workspace_close_panel, workspace_focus_panel, workspace_list_panels.",
+      "dependencies": [
+        "@boring/viewers",
+        "dockview-react@^8.3.1",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "https://hachej.github.io/boring-ui-v3/r/conflict-banner.json"
+      ],
+      "files": [
+        {
+          "path": "registry/workspace/workspace.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".boring-dockview .dockview-theme-light": {
+            "--dv-group-view-background-color": "var(--background)",
+            "--dv-tabs-and-actions-container-background-color": "var(--muted)",
+            "--dv-activegroup-visiblepanel-tab-background-color": "var(--background)",
+            "--dv-activegroup-hiddenpanel-tab-background-color": "var(--muted)",
+            "--dv-inactivegroup-visiblepanel-tab-background-color": "var(--background)",
+            "--dv-inactivegroup-hiddenpanel-tab-background-color": "var(--muted)",
+            "--dv-activegroup-visiblepanel-tab-color": "var(--foreground)",
+            "--dv-activegroup-hiddenpanel-tab-color": "var(--muted-foreground)",
+            "--dv-inactivegroup-visiblepanel-tab-color": "var(--muted-foreground)",
+            "--dv-inactivegroup-hiddenpanel-tab-color": "var(--muted-foreground)",
+            "--dv-tab-divider-color": "var(--border)",
+            "--dv-separator-border": "var(--border)",
+            "--dv-paneview-header-border-color": "var(--border)",
+            "--dv-drag-over-background-color": "color-mix(in oklch, var(--primary) 20%, transparent)",
+            "--dv-drag-over-border-color": "var(--primary)",
+            "--dv-active-sash-color": "var(--primary)",
+            "--dv-icon-hover-background-color": "var(--accent)",
+            "--dv-tabs-and-actions-container-font-size": "12px",
+            "--dv-tabs-and-actions-container-height": "34px"
+          }
+        }
+      },
+      "docs": "Needs @boring/viewers in your package.json. Call useWorkspaceLayout({ files, address: '/workspace/.boring/layout.json', kinds: [...] }) in your app, pass it as `workspace`, and render panels by kind with the other items.",
+      "categories": [
+        "layout",
+        "agent"
+      ]
+    },
+    {
       "name": "chat-message",
       "type": "registry:component",
       "title": "Chat message",

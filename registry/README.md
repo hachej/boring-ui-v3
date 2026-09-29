@@ -15,6 +15,7 @@ Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind 
 | conflict-banner | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/conflict-banner.json` |
 | image-viewer | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/image-viewer.json` |
 | canvas | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/canvas.json` (tldraw; pass `licenseKey` from your config in production) |
+| workspace | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/workspace.json` (dockview; panels are the other items, rendered by your app) |
 | chat | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/chat.json` (brings chat-message, tool-call, ask-card, approval-card) |
 | chat-message, tool-call, ask-card, approval-card | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` |
 
