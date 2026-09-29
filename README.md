@@ -5,8 +5,8 @@ A library for putting an agent next to an application. The application keeps its
 | Package | What it gives you |
 |---|---|
 | [`@boring/agent`](packages/agent) | A durable agent loop mounted in your backend: threads, runs, tools admitted before they run, a receipt for every effect, questions and approvals as records, usage metered per actor. |
-| [`@boring/chat`](packages/chat) | One React component that shows a thread and talks to that loop. Place it anywhere. Register the page commands the agent may use. |
-| [`@boring/files`](packages/files) | Files under mounts, with revisions and receipts, behind one provider contract that the tree, the HTTP endpoints and the agent's tools all share. Local store, directory or remote sandbox. |
+| [`@boring/chat`](packages/chat) | One React shell that shows a thread and talks to that loop, skinned by tokens, slots or headless. Place it anywhere. Register the page commands the agent may request, over the wire, in-process or against a separate service. |
+| [`@boring/files`](packages/files) | Files under mounts (`/code`, `/workspace`, `/shared`, `/mnt/<name>`), with revisions and receipts, behind one provider contract the agent's tools and the host share. Memory, directory, GitHub, or a read-only view of any. |
 
 `agent` depends on `files`. `chat` depends on the agent's wire types only. `files` depends on nothing here. That direction is written in [ARCHITECTURE.json](ARCHITECTURE.json) and enforced by `boring check`.
 
@@ -31,6 +31,7 @@ npm run test:formal       # the four bounded models and their mutants
 npm run smoke             # the CI journey on a throwaway copy of the example (needs Chromium)
 npm run verify            # every registered evidence: tests, models, smoke; deferrals listed
 node bin/boring.mjs env up --seed asked   # an isolated copy of examples/notes to drive (see the skill)
+node examples/embed-host/server.mjs       # an existing app on :8788 that mounts the runtime, registers page commands and attaches /code and /workspace
 node bin/boring.mjs --help
 ```
 
@@ -38,7 +39,7 @@ node bin/boring.mjs --help
 
 ## Where this stands
 
-Contracts, laws, registries, the checker and the two models were the skeleton. `@boring/agent` now exists: definitions as files, the Flue-backed runtime with receipts, metering, validated outputs and repair, the HTTP wire and the manifest, driven end to end by [examples/notes](examples/notes). `@boring/chat` has its client and a minimal `BoringChat`. `@boring/files` is still its contract. The rest arrives in the order of [the roadmap](docs/architecture/ROADMAP.md). The method comes from [docs/architecture/METHOD.md](docs/architecture/METHOD.md); the reasons for three packages are in [docs/architecture/LIBRARY.md](docs/architecture/LIBRARY.md).
+Contracts, laws, registries, the checker and the two models were the skeleton. `@boring/agent` exists: definitions as files, the Flue-backed runtime with receipts, metering, validated outputs and repair, the HTTP wire and the manifest, driven end to end by [examples/notes](examples/notes). `@boring/files` has its providers (memory, directory, GitHub, read-only), address confinement and one conformance suite; the runtime offers file tools over the host's mounts with grants and receipts. `@boring/chat` has its client, the page-command bridge ([design](docs/design/ui-bridge.md)) and a skinnable `BoringChat`; [examples/embed-host](examples/embed-host) drives all of it from a browser, and [docs/design/healio-embedding.md](docs/design/healio-embedding.md) stress-tests the contract against a real application. The rest arrives in the order of [the roadmap](docs/architecture/ROADMAP.md). The method comes from [docs/architecture/METHOD.md](docs/architecture/METHOD.md); the reasons for three packages are in [docs/architecture/LIBRARY.md](docs/architecture/LIBRARY.md).
 
 ## History
 

@@ -2,7 +2,7 @@
  * The wire client: plain fetch and NDJSON, no framework. It sends what a person says and replays
  * or follows a thread's events by cursor; it keeps no state the wire could not rebuild (CHAT-1).
  */
-import type { Event, JobView, RunView } from "@boring/agent/wire";
+import type { Event, JobView, RunView, UiCommandSpec, UiRegistrationView, UiRequestView, UiResult, UiTarget } from "@boring/agent/wire";
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -19,8 +19,15 @@ export interface ChatClient {
   cancel(run: string): Promise<RunView>;
   run(id: string): Promise<RunView>;
   job(id: string): Promise<JobView>;
+  /** An empty thread of the session's actor: what a page registers its commands on before anything is said. */
+  createThread(): Promise<{ id: string; createdAt: string }>;
   /** Replays the thread's events after the cursor, then follows live ones until the signal aborts. */
   follow(scope: { thread: string } | { run: string }, options?: { cursor?: string; live?: boolean; signal?: AbortSignal }): AsyncIterable<Event>;
+  /** The page-command bridge (CHAT-3): what this page instance offers on a thread, and its one answer per request. */
+  registerUi(thread: string, page: string, registration: { commands: readonly UiCommandSpec[]; target?: UiTarget }): Promise<UiRegistrationView>;
+  unregisterUi(thread: string, page: string): Promise<void>;
+  uiRegistrations(thread: string): Promise<readonly UiRegistrationView[]>;
+  answerUi(run: string, request: string, answer: { page: string; result: UiResult }): Promise<UiRequestView>;
 }
 
 export class WireRequestError extends Error {
@@ -68,6 +75,11 @@ export function createChatClient({ endpoint, fetch: doFetch = (input, init) => f
     cancel: run => post(`/runs/${encodeURIComponent(run)}/cancel`, {}).then(r => json<RunView>(r)),
     run: id => doFetch(`${base}/runs/${encodeURIComponent(id)}`).then(r => json<RunView>(r)),
     job: id => doFetch(`${base}/jobs/${encodeURIComponent(id)}`).then(r => json<JobView>(r)),
+    createThread: () => post("/threads", {}).then(r => json<{ id: string; createdAt: string }>(r)),
+    registerUi: (thread, page, registration) => doFetch(`${base}/threads/${encodeURIComponent(thread)}/ui/${encodeURIComponent(page)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(registration) }).then(r => json<UiRegistrationView>(r)),
+    unregisterUi: (thread, page) => doFetch(`${base}/threads/${encodeURIComponent(thread)}/ui/${encodeURIComponent(page)}`, { method: "DELETE" }).then(r => json(r)).then(() => undefined),
+    uiRegistrations: thread => doFetch(`${base}/threads/${encodeURIComponent(thread)}/ui`).then(r => json<readonly UiRegistrationView[]>(r)),
+    answerUi: (run, request, answer) => post(`/runs/${encodeURIComponent(run)}/ui/${encodeURIComponent(request)}`, answer).then(r => json<UiRequestView>(r)),
     async *follow(scope, options = {}) {
       const query = new URLSearchParams();
       if (options.cursor) query.set("cursor", options.cursor);

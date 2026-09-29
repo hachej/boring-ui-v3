@@ -1,12 +1,13 @@
 {
   "name": "@boring/chat",
   "version": "0.0.0",
-  "description": "BoringChat: one React component over the agent wire (fetch + NDJSON), plus the ChatClient protocol; placeable in any layout.",
+  "description": "BoringChat: one themable React shell over the agent wire (fetch + NDJSON) with slots and a headless mode, the ChatClient protocol, and the page-command bridge (useAgentUi / createUiBridge).",
   "type": "module",
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./bridge": "./src/bridge.ts"
   },
   "devDependencies": {
     "@boring/agent": "*"

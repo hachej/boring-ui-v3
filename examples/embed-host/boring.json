@@ -1,0 +1,1 @@
+{ "name": "embed-host", "version": "0.1.0", "description": "A tiny existing application that mounts the runtime in-process, registers two page commands and attaches /code (read-only) and /workspace." }

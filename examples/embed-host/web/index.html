@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Records</title>
+<style>
+  /* The host's own styles. The chat only reads --boring-* tokens; it injects nothing here. */
+  body { margin: 0; font-family: Georgia, serif; background: #faf7f2; color: #2b2118; }
+  main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; height: 100vh; padding: 16px; box-sizing: border-box; }
+  aside { --boring-font: Georgia, serif; --boring-accent: #8b5e34; --boring-person-bg: #f1e4d3; --boring-agent-bg: #fff; --boring-radius: 6px; border-left: 1px solid #e3d8c8; padding-left: 16px; min-height: 0; }
+  li[data-selected] { font-weight: bold; }
+  [data-highlight] { outline: 2px solid #8b5e34; }
+</style>
+</head>
+<body><main id="app"></main><script type="module" src="./main.tsx"></script></body>
+</html>

@@ -36,15 +36,31 @@
           ],
           "timeout": 600,
           "claim": "The component renders and works in the example's bare page with only endpoint, conversation, inputs and thread props: a person types, sends, and the agent's reply appears."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "examples/embed-host/test/browser.test.ts"
+          ],
+          "claim": "The shell renders and works in a bare page beside another application's own markup with endpoint, conversation and the session's fetch only, and the host's tokens theme it."
         }
       ]
     },
     "CHAT-3": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "An unregistered command or an argument outside its schema is refused in the bridge before reaching the page.",
-          "reason": "arrives with the bridge: node --test test/chat/bridge.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/chat/bridge.test.ts",
+            "test/agent/ui.test.ts"
+          ],
+          "claim": "An unregistered command, an input outside its schema or a request bound to a target the page left is refused in the bridge before the handler runs; the runtime offers only registered, declared and host-allowed commands and takes one answer per request from the bound page."
         }
       ]
     },
@@ -75,6 +91,20 @@
           "kind": "pending",
           "claim": "An answer posted without the session's actor, or for another actor's question, is rejected.",
           "reason": "decisions are not implemented yet: node --test test/agent/decisions.test.ts"
+        }
+      ]
+    },
+    "CHAT-5": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "examples/embed-host/test/browser.test.ts"
+          ],
+          "claim": "The mounted shell adds no stylesheet, no element outside its root and no style on body; its appearance follows --boring-* tokens set by the host."
         }
       ]
     }

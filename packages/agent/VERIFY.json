@@ -86,9 +86,14 @@
           "claim": "On the running example: the summariser's lookup call leaves a receipt with actor, thread, run and tool, readable in the records the runtime keeps."
         },
         {
-          "kind": "pending",
-          "claim": "File revisions before and after land in the receipt through the files contract.",
-          "reason": "arrives with the files providers: node --test test/files/receipts.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/files.test.ts"
+          ],
+          "claim": "A file write through the run's tool lands in the receipt row with mount, path and the revisions before and after, taken from the provider's receipt."
         }
       ]
     },
@@ -146,6 +151,16 @@
             "test/agent/admission.test.ts"
           ],
           "claim": "allowedTools, mayRequest and isActive are asked at each operation and a host that answers no is obeyed there; an actor sees only their own threads, runs and jobs."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/files.test.ts"
+          ],
+          "claim": "The grants a definition's files: needs produce against the host's mounts are handed to mayRequest for every run."
         }
       ]
     },
@@ -162,9 +177,15 @@
           "claim": "Changing the host's answers for an actor changes the tools offered; the runtime source compares no role string."
         },
         {
-          "kind": "pending",
-          "claim": "Mount and answer rights follow the host's answers the same way.",
-          "reason": "mounts need the files providers and answers need decisions: node --test test/agent/host.test.ts (mounts, answers)"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/files.test.ts",
+            "test/agent/ui.test.ts"
+          ],
+          "claim": "Mounts come from host.mounts per effect and file tools and page commands are offered only when the host allows them by name; the runtime compares no role string."
         }
       ]
     },
@@ -218,6 +239,16 @@
           ],
           "timeout": 600,
           "claim": "On the running example over HTTP: the same key with the same body returns the recorded run, another body is 409."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/idempotency.test.ts"
+          ],
+          "claim": "Concurrent requests with one key create one run, one job or one message: the key is reserved synchronously before any await; a request that fails frees its key; another body under a reserved key is a conflict."
         }
       ]
     },
@@ -247,6 +278,20 @@
           ],
           "timeout": 600,
           "claim": "On the running example: the digest job starts one summarise child per note, completes only when both completed, and an empty plan is 400."
+        }
+      ]
+    },
+    "AGENT-13": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/ui.test.ts"
+          ],
+          "claim": "A page command is offered only when the definition names it, the host allows it and a page registered it on the thread; running it is a request record answered once by that page for that actor, expired on timeout, ended unavailable when the page leaves or moves target; a registration cannot shadow a backend tool; the request and its answer replay by cursor."
         }
       ]
     }

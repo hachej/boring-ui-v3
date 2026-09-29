@@ -6,7 +6,7 @@
  */
 import { Hono } from "hono";
 import type { Actor, Host } from "../index.ts";
-import type { Event, WireError } from "../wire.ts";
+import type { Event, UiCommandSpec, UiResult, UiTarget, WireError } from "../wire.ts";
 import { RuntimeError, type Runtime } from "../runtime/runtime.ts";
 import { isTerminal, runView } from "../runtime/store.ts";
 
@@ -90,6 +90,25 @@ export function mountWire({ host, runtime, basePath = "" }: WireOptions): { fetc
     return c.json({ thread: thread.id, run: runView(run) }, 202);
   });
 
+  // The page-command bridge (CHAT-3): a page registers what it offers, follows the thread's `ui` events and answers once.
+  app.put("/threads/:id/ui/:page", async c => {
+    const b = await body(c.req.raw);
+    const commands = Array.isArray(b.commands) ? b.commands as UiCommandSpec[] : null;
+    if (!commands) throw new RuntimeError(400, "commands must be a list of { name, description, input }");
+    const target = obj(b.target);
+    if (target && (typeof target.kind !== "string" || typeof target.id !== "string")) throw new RuntimeError(400, "target must be { kind, id, version? }");
+    return c.json(runtime.registerUi(c.get("actor"), c.req.param("id"), { page: c.req.param("page"), commands, ...(target ? { target: target as unknown as UiTarget } : {}) }));
+  });
+  app.delete("/threads/:id/ui/:page", c => { runtime.unregisterUi(c.get("actor"), c.req.param("id"), c.req.param("page")); return c.json({ page: c.req.param("page"), removed: true }); });
+  app.get("/threads/:id/ui", c => c.json(runtime.uiRegistrations(c.get("actor"), c.req.param("id"))));
+  app.post("/runs/:id/ui/:requestId", async c => {
+    const b = await body(c.req.raw);
+    const result = obj(b.result);
+    if (!str(b.page) || !result) throw new RuntimeError(400, "page and result are required");
+    return c.json(runtime.answerUi(c.get("actor"), c.req.param("id"), c.req.param("requestId"), { page: str(b.page)!, result: result as unknown as UiResult }));
+  });
+
+  app.post("/threads", c => { const t = runtime.createThread(c.get("actor")); return c.json({ id: t.id, createdAt: t.createdAt }, 201); });
   app.get("/threads/:id", c => { const t = runtime.thread(c.get("actor"), c.req.param("id")); return c.json({ id: t.id, createdAt: t.createdAt }); });
   app.get("/threads/:id/events", c => {
     const { replay, subscribe } = runtime.events(c.get("actor"), { thread: c.req.param("id") }, c.req.query("cursor"));

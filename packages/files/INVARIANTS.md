@@ -1,10 +1,10 @@
 # Files laws
 
-A file lives under a mount. A mount is a named space the host maps to a provider: a SQLite store, a directory, a remote sandbox. The tree, the HTTP endpoints and the agent's file tools all go through the [provider contract](src/index.ts).
+A file lives under a mount. A mount is a named space the host maps to a provider: the default in-memory store, a directory, a GitHub repository, a read-only view of any of them. The names are fixed by convention: `code` (the application's, read-only by default), `workspace` (the person's), `shared`, and attached mounts `mnt/<name>`. The tree, the HTTP endpoints and the agent's file tools all go through the [provider contract](src/index.ts) and the mount router.
 
 ## FILES-1 — a read names its revision
 
-A read returns the content and the revision it came from. Two mounts, or two providers, cannot issue the same identity for different files.
+A read returns the content and the revision it came from. A read pinned to a revision returns exactly that revision or refuses (`unavailable`); it never serves a later one. Two mounts, or two providers, cannot issue the same identity for different files.
 
 ## FILES-2 — a write names the revision it saw
 

@@ -26,8 +26,13 @@ What an application exposes when it mounts `mountWire`, and what a client (a cha
 | `POST /jobs/:job/start` | `{ inputs?, thread?, idempotencyKey? }` | **202** `JobView` with its children |
 | `GET /jobs/:id` | — | **200** `JobView` |
 | `POST /conversations/:conversation/messages` | `{ text, thread?, inputs?, idempotencyKey? }` | **202** `{ thread: string, run: RunView }` |
+| `POST /threads` | `{}` | **201** `{ id, createdAt }`: an empty thread, so a page can register its commands before the first message |
 | `GET /threads/:id` | — | **200** `{ id, createdAt }` |
 | `GET /threads/:id/events?cursor=&live=0` | — | **200** NDJSON of `Event`, replay after `cursor`; live until the client disconnects unless `live=0` |
+| `PUT /threads/:id/ui/:page` | `{ commands: UiCommandSpec[], target? }` | **200** `UiRegistrationView`: this page instance's commands on the thread; re-PUT when the target changes |
+| `DELETE /threads/:id/ui/:page` | — | **200** `{ page, removed: true }` |
+| `GET /threads/:id/ui` | — | **200** `UiRegistrationView[]` |
+| `POST /runs/:id/ui/:requestId` | `{ page, result: UiResult }` | **200** `UiRequestView` (answered); 404 for another page or actor; 409 once answered or expired |
 
 Body fields:
 
@@ -36,6 +41,12 @@ Body fields:
 - `text` (string, required for a conversation message): the person's message.
 - `thread` (string): an existing thread of this actor; omitted, a new thread is created and returned in the view.
 - `idempotencyKey` (string): see the rules above.
+
+Page-command fields (see [docs/design/ui-bridge.md](../../docs/design/ui-bridge.md)):
+
+- `commands`: `[{ name, description, input }]`, `input` a JSON-schema object. A name equal to a backend tool is **409**; a malformed name or schema is **400**. Registering grants nothing: a command is offered to a run only when its `agent.md` names it under `ui:` and `Host.allowedTools` allows it.
+- `target`: `{ kind, id, version? }`, what the page shows; a request binds it and a page answers `stale` when it changed.
+- `result`: `{ outcome, detail?, evidence? }` with `outcome` one of `applied | proposed | committed | stale | conflict | denied | unavailable`.
 
 ## Views
 
@@ -54,10 +65,14 @@ One JSON object per line. Every event has a `cursor` (an opaque string; numerica
 { cursor, kind: "message", message: { id, role: "person" | "agent", run?, parts: Part[], at } }
 { cursor, kind: "run", run: RunView }
 { cursor, kind: "decision", decision, answered }          (reserved; decisions are not implemented yet)
+{ cursor, kind: "ui", ui: UiRequestView }                  (a request to a page and, later, its answer or expiry)
 Part = { type: "text", text } | { type: "tool", name, input, state, output?, error? } | { type: "ask" | "approve" | "artefact", ... }
+UiRequestView = { id, run, thread, page, command, input, target?, state: "requested" | "answered" | "expired" | "unavailable", result?, at, answeredAt? }
 ```
 
-Cursor semantics: `?cursor=` returns events strictly after that cursor; omit it for everything. Events are durable and replaying twice yields the same lines; a client rebuilds its whole state from them and stores nothing else. A run's stream is, in order: the `run` event at creation (`pending`), the person's `message`, `run` (`running`), the agent's `message` (the answer or the failure), then the terminal `run` event that closes the stream. Live delivery is in-process; after a reconnect, replay from the last cursor seen.
+Every tool call a run makes (a helper tool, a file tool, a page command) is recorded as an agent `message` with one `tool` part once it returned: `state` is `done` or `error`, `output` the handler's value or the page's result.
+
+Cursor semantics: `?cursor=` returns events strictly after that cursor; omit it for everything. Events are durable and replaying twice yields the same lines; a client rebuilds its whole state from them and stores nothing else. A run's stream is, in order: the `run` event at creation (`pending`), the person's `message`, `run` (`running`), tool-call `message`s and `ui` requests as they happen, the agent's `message` (the answer or the failure), then the terminal `run` event that closes the stream. Live delivery is in-process; after a reconnect, replay from the last cursor seen.
 
 ## Manifest
 

@@ -7,7 +7,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import type { Event, JobView, Message, RunView } from "../wire.ts";
+import type { Event, JobView, Message, RunView, UiRequestView, UiResult, UiTarget } from "../wire.ts";
 import type { RunStatus, Usage } from "../index.ts";
 
 export type ThreadRecord = Readonly<{ id: string; actor: string; createdAt: string }>;
@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS usage(id TEXT PRIMARY KEY, actor TEXT NOT NULL, threa
   input INTEGER NOT NULL, output INTEGER NOT NULL, cached INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY, actor TEXT NOT NULL, thread TEXT NOT NULL, run TEXT NOT NULL, tool TEXT NOT NULL, input_hash TEXT NOT NULL,
   ok INTEGER NOT NULL, revisions TEXT, at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS idempotency(actor TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL, target TEXT NOT NULL, PRIMARY KEY(actor, key));
+CREATE TABLE IF NOT EXISTS idempotency(actor TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL, target TEXT, PRIMARY KEY(actor, key));
+CREATE TABLE IF NOT EXISTS ui_requests(id TEXT PRIMARY KEY, run TEXT NOT NULL, thread TEXT NOT NULL, page TEXT NOT NULL, command TEXT NOT NULL, input TEXT NOT NULL,
+  target TEXT, state TEXT NOT NULL, result TEXT, at TEXT NOT NULL, answered_at TEXT);
 `;
 
 const TERMINAL: readonly RunStatus[] = ["completed", "failed", "cancelled"];
@@ -87,6 +89,8 @@ export class Store {
       failed.push(this.run(row.id as string)!);
     }
     for (const row of this.db.prepare("SELECT id FROM jobs WHERE status IN ('pending','running')").all() as Row[]) this.finishJob(row.id as string, { status: "failed", error: reason });
+    // A key reserved by a request the dead process never finished holds no target: it is free again.
+    this.db.prepare("DELETE FROM idempotency WHERE target IS NULL").run();
     return failed;
   }
 
@@ -101,14 +105,22 @@ export class Store {
     return row ? { id: row.id as string, actor: row.actor as string, createdAt: row.created_at as string } : null;
   }
 
-  // Idempotency (SPEC §4.3): same key and request → the recorded target; same key, other request → conflict.
-  idempotent(actor: string, key: string, request: unknown): { target: string } | { conflict: true } | null {
-    const row = this.db.prepare("SELECT request_hash, target FROM idempotency WHERE actor = ? AND key = ?").get(actor, key) as Row | undefined;
-    if (!row) return null;
-    return row.request_hash === hashOf(request) ? { target: row.target as string } : { conflict: true };
+  // Idempotency (SPEC §4.3, AGENT-11): the key is reserved in one synchronous step before anything else happens for it,
+  // so two concurrent requests with one key cannot both create a target. A reserved row has no target until `fillKey`.
+  reserveKey(actor: string, key: string, request: unknown): { state: "reserved" } | { state: "recorded"; target: string } | { state: "pending" } | { state: "conflict" } {
+    const hash = hashOf(request);
+    const inserted = this.db.prepare("INSERT OR IGNORE INTO idempotency(actor, key, request_hash, target) VALUES(?,?,?,NULL)").run(actor, key, hash).changes > 0;
+    if (inserted) return { state: "reserved" };
+    const row = this.db.prepare("SELECT request_hash, target FROM idempotency WHERE actor = ? AND key = ?").get(actor, key) as Row;
+    if (row.request_hash !== hash) return { state: "conflict" };
+    return row.target === null ? { state: "pending" } : { state: "recorded", target: row.target as string };
   }
-  rememberKey(actor: string, key: string, request: unknown, target: string) {
-    this.db.prepare("INSERT INTO idempotency(actor, key, request_hash, target) VALUES(?,?,?,?)").run(actor, key, hashOf(request), target);
+  fillKey(actor: string, key: string, target: string) {
+    this.db.prepare("UPDATE idempotency SET target = ? WHERE actor = ? AND key = ? AND target IS NULL").run(target, actor, key);
+  }
+  /** The request behind a reservation failed before it had a target: the key is free again. */
+  releaseKey(actor: string, key: string) {
+    this.db.prepare("DELETE FROM idempotency WHERE actor = ? AND key = ? AND target IS NULL").run(actor, key);
   }
 
   // Runs
@@ -206,6 +218,40 @@ export class Store {
       input: Number(row.input), output: Number(row.output), cached: Number(row.cached), at: row.at as string,
     }));
   }
+  // UI requests (CHAT-3, UI-BOUNDARY-4/5): a request to the bound page is a record; it is answered once by compare-and-set.
+  private uiOf(row: Row): UiRequestView {
+    return { id: row.id as string, run: row.run as string, thread: row.thread as string, page: row.page as string, command: row.command as string, input: parse(row.input),
+      ...(row.target ? { target: parse(row.target) as UiTarget } : {}), state: row.state as UiRequestView["state"], ...(row.result ? { result: parse(row.result) as UiResult } : {}),
+      at: row.at as string, ...(row.answered_at ? { answeredAt: row.answered_at as string } : {}) };
+  }
+  createUiRequest(fields: { run: string; thread: string; page: string; command: string; input: unknown; target?: UiTarget }): UiRequestView {
+    const id = randomUUID();
+    this.db.prepare("INSERT INTO ui_requests(id, run, thread, page, command, input, target, state, at) VALUES(?,?,?,?,?,?,?,?,?)")
+      .run(id, fields.run, fields.thread, fields.page, fields.command, json(fields.input), fields.target ? json(fields.target) : null, "requested", now());
+    const view = this.uiRequest(id)!;
+    this.emit({ thread: view.thread, run: view.run, kind: "ui", payload: { ui: view } });
+    return view;
+  }
+  uiRequest(id: string): UiRequestView | null {
+    const row = this.db.prepare("SELECT * FROM ui_requests WHERE id = ?").get(id) as Row | undefined;
+    return row ? this.uiOf(row) : null;
+  }
+  /** requested → answered | expired | unavailable, once. Returns null when the request already left `requested`. */
+  settleUiRequest(id: string, end: { state: "answered" | "expired" | "unavailable"; result?: UiResult }): UiRequestView | null {
+    const changed = this.db.prepare("UPDATE ui_requests SET state = ?, result = ?, answered_at = ? WHERE id = ? AND state = 'requested'")
+      .run(end.state, end.result ? json(end.result) : null, now(), id).changes > 0;
+    if (!changed) return null;
+    const view = this.uiRequest(id)!;
+    this.emit({ thread: view.thread, run: view.run, kind: "ui", payload: { ui: view } });
+    return view;
+  }
+  openUiRequests(scope: { page?: string; run?: string }): readonly UiRequestView[] {
+    const rows = scope.page
+      ? this.db.prepare("SELECT * FROM ui_requests WHERE page = ? AND state = 'requested'").all(scope.page)
+      : this.db.prepare("SELECT * FROM ui_requests WHERE run = ? AND state = 'requested'").all(scope.run!);
+    return (rows as Row[]).map(row => this.uiOf(row));
+  }
+
   addReceipt(receipt: Omit<ReceiptRow, "id" | "at">): ReceiptRow {
     const full = { id: randomUUID(), at: now(), ...receipt };
     this.db.prepare("INSERT INTO receipts(id, actor, thread, run, tool, input_hash, ok, revisions, at) VALUES(?,?,?,?,?,?,?,?,?)")

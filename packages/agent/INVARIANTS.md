@@ -49,3 +49,7 @@ A request that carries an idempotency key is recorded once per actor and key. Re
 ## AGENT-12 — a job's composition is predeclared
 
 A job definition names the agents it may start. The plan a job makes for one input is frozen when the job starts, a child runs only under its running parent, and the parent completes only from completed children. A plan that names an undeclared agent is refused before anything is recorded.
+
+## AGENT-13 — a page command is a request, answered once by the bound page
+
+A page registers the commands it offers on a thread; registering grants nothing. A command is offered to a run only when its definition names it and the host allows it. Running it creates a request record bound to the page instance and the target the page reported; that page, for that actor, answers it once, and the answer says whether the page acted locally or the application committed something. A request nobody answers expires; a page that leaves or moves target ends its open requests. A page command never shadows a backend tool and never receives authority the run did not have.
