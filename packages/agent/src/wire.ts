@@ -38,6 +38,8 @@ export type RunView = Readonly<{
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   output?: unknown;
   error?: string;
+  /** Why a failed run failed, stable across languages: invalid_output | revoked | interrupted | error. */
+  failure?: "invalid_output" | "revoked" | "interrupted" | "error";
   model?: string;
   attempts?: number;
   createdAt: string;

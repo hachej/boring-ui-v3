@@ -53,3 +53,7 @@ A job definition names the agents it may start. The plan a job makes for one inp
 ## AGENT-13 — a page command is a request, answered once by the bound page
 
 A page registers the commands it offers on a thread; registering grants nothing. A command is offered to a run only when its definition names it and the host allows it. Running it creates a request record bound to the page instance and the target the page reported; that page, for that actor, answers it once, and the answer says whether the page acted locally or the application committed something. A request nobody answers expires; a page that leaves or moves target ends its open requests. A page command never shadows a backend tool and never receives authority the run did not have.
+
+## AGENT-14 — the library's words are the application's language
+
+Every sentence the library itself writes (the history preamble and speaker labels given to a model, a repair request, a refusal, the error recorded on a failed, revoked or interrupted run) comes from one phrase table in the language the application chose at mount time, with any phrase overridable. A failed run also records a failure kind (`invalid_output`, `revoked`, `interrupted`, `error`) so an application can decide what to show without parsing a sentence in any language.

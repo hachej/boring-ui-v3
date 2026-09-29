@@ -6,7 +6,8 @@
  * `.` and `..` are not segments; `\`, `%`, `:` and control characters are refused rather than
  * interpreted, so no encoding or alias can name a file the canonical form cannot.
  */
-import { FileProviderError, type FileAddress } from "./index.ts";
+import { FileProviderError } from "./errors.ts";
+import type { FileAddress } from "./index.ts";
 
 const SEGMENT = /^[\p{L}\p{N}._\- ]+$/u;
 

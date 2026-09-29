@@ -31,3 +31,15 @@ test("AGENT-8: an actor sees only their own threads, runs and jobs", async t => 
   }
   assert.equal((await call("POST", `/agents/summarise/runs`, { inputs: { note: "n" }, thread: run.thread }, { "x-test-actor": "bob" })).status, 404, "another actor cannot write to the thread");
 });
+
+test("AGENT-8: a model setting given as a function is asked at every run, not cached", async t => {
+  // The fake provider routes every agent to fake/<agent>, so the proof is that the setting is asked per run.
+  let setting: { effort?: "low" | "high" } = { effort: "low" };
+  const asked: { agent: string; effort?: string }[] = [];
+  const { call, settled, runtime } = await boot({ models: agent => { asked.push({ agent, effort: setting.effort }); return setting; } });
+  t.after(() => runtime.stop());
+  await settled((await call("POST", "/agents/summarise/runs", { inputs: { note: "n" } })).body.id);
+  setting = { effort: "high" };
+  await settled((await call("POST", "/conversations/questions/messages", { text: "?", inputs: { notes: [] } })).body.run.id);
+  assert.deepEqual(asked, [{ agent: "summarise", effort: "low" }, { agent: "answer", effort: "high" }], "asked at each run, with the setting as it stands then");
+});

@@ -7,13 +7,14 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { PHRASES, type RunFailure } from "../phrases.ts";
 import type { Event, JobView, Message, RunView, UiRequestView, UiResult, UiTarget } from "../wire.ts";
 import type { RunStatus, Usage } from "../index.ts";
 
 export type ThreadRecord = Readonly<{ id: string; actor: string; createdAt: string }>;
 export type RunRecord = Readonly<{
   id: string; thread: string; agent: string; actor: string; job: string | null; status: RunStatus;
-  input: Record<string, unknown>; output: unknown; error: string | null; model: string | null; attempts: number;
+  input: Record<string, unknown>; output: unknown; error: string | null; failure: RunFailure | null; model: string | null; attempts: number;
   cancelRequested: boolean; createdAt: string; endedAt: string | null;
 }>;
 export type JobRecord = Readonly<{
@@ -52,7 +53,7 @@ export const hashOf = (value: unknown) => createHash("sha256").update(JSON.strin
 type Row = Record<string, unknown>;
 const runOf = (row: Row): RunRecord => ({
   id: row.id as string, thread: row.thread as string, agent: row.agent as string, actor: row.actor as string, job: (row.job as string | null) ?? null,
-  status: row.status as RunStatus, input: parse(row.input) ?? {}, output: parse(row.output), error: (row.error as string | null) ?? null,
+  status: row.status as RunStatus, input: parse(row.input) ?? {}, output: parse(row.output), error: (row.error as string | null) ?? null, failure: (row.failure as RunFailure | null) ?? null,
   model: (row.model as string | null) ?? null, attempts: Number(row.attempts), cancelRequested: !!row.cancel_requested,
   createdAt: row.created_at as string, endedAt: (row.ended_at as string | null) ?? null,
 });
@@ -63,7 +64,7 @@ const jobOf = (row: Row): JobRecord => ({
 
 export const runView = (run: RunRecord): RunView => ({
   id: run.id, thread: run.thread, agent: run.agent, ...(run.job ? { job: run.job } : {}), status: run.status,
-  ...(run.output !== null && run.output !== undefined ? { output: run.output } : {}), ...(run.error ? { error: run.error } : {}),
+  ...(run.output !== null && run.output !== undefined ? { output: run.output } : {}), ...(run.error ? { error: run.error } : {}), ...(run.failure ? { failure: run.failure } : {}),
   ...(run.model ? { model: run.model } : {}), attempts: run.attempts, createdAt: run.createdAt, ...(run.endedAt ? { endedAt: run.endedAt } : {}),
 });
 
@@ -75,17 +76,21 @@ export class Store {
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
     this.db.exec(SCHEMA);
+    // Columns added after the first stores were written (AGENT-14 failure kinds, AGENT-10 cost): added in place, data kept.
+    const has = (table: string, column: string) => (this.db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).some(c => c.name === column);
+    if (!has("runs", "failure")) this.db.exec("ALTER TABLE runs ADD COLUMN failure TEXT");
+    if (!has("usage", "cost")) this.db.exec("ALTER TABLE usage ADD COLUMN cost REAL NOT NULL DEFAULT 0");
     this.live.setMaxListeners(0);
   }
 
   close() { this.db.close(); }
 
   /** Runs and jobs still open when the process died cannot resume: they fail explicitly (AGENT-1). */
-  failInterrupted(reason = "interrupted: the process that ran this stopped"): readonly RunRecord[] {
+  failInterrupted(reason = PHRASES.en.interrupted): readonly RunRecord[] {
     const open = this.db.prepare("SELECT * FROM runs WHERE status IN ('pending','running')").all() as Row[];
     const failed: RunRecord[] = [];
     for (const row of open) {
-      this.finishRun(row.id as string, { status: "failed", error: reason });
+      this.finishRun(row.id as string, { status: "failed", error: reason, failure: "interrupted" });
       failed.push(this.run(row.id as string)!);
     }
     for (const row of this.db.prepare("SELECT id FROM jobs WHERE status IN ('pending','running')").all() as Row[]) this.finishJob(row.id as string, { status: "failed", error: reason });
@@ -151,9 +156,10 @@ export class Store {
     return this.run(id);
   }
   /** The single terminal transition: a run ends once (AGENT-1). Returns false if it already ended. */
-  finishRun(id: string, end: { status: "completed" | "failed" | "cancelled"; output?: unknown; error?: string; attempts?: number }): boolean {
-    const changed = this.db.prepare("UPDATE runs SET status = ?, output = ?, error = ?, attempts = COALESCE(?, attempts), ended_at = ? WHERE id = ? AND status IN ('pending','running')")
-      .run(end.status, end.output === undefined ? null : json(end.output), end.error ?? null, end.attempts ?? null, now(), id).changes > 0;
+  finishRun(id: string, end: { status: "completed" | "failed" | "cancelled"; output?: unknown; error?: string; failure?: RunFailure; attempts?: number }): boolean {
+    const failure = end.status === "failed" ? end.failure ?? "error" : null;
+    const changed = this.db.prepare("UPDATE runs SET status = ?, output = ?, error = ?, failure = ?, attempts = COALESCE(?, attempts), ended_at = ? WHERE id = ? AND status IN ('pending','running')")
+      .run(end.status, end.output === undefined ? null : json(end.output), end.error ?? null, failure, end.attempts ?? null, now(), id).changes > 0;
     if (changed) { const run = this.run(id)!; this.emit({ thread: run.thread, run: id, kind: "run", payload: { run: runView(run) } }); }
     return changed;
   }
@@ -208,14 +214,14 @@ export class Store {
   // Usage and receipts
   addUsage(usage: Usage): UsageRow {
     const id = randomUUID();
-    this.db.prepare("INSERT INTO usage(id, actor, thread, run, agent, model, input, output, cached, at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-      .run(id, usage.actor, usage.thread, usage.run, usage.agent, usage.model, usage.input, usage.output, usage.cached ?? 0, usage.at);
+    this.db.prepare("INSERT INTO usage(id, actor, thread, run, agent, model, input, output, cached, cost, at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+      .run(id, usage.actor, usage.thread, usage.run, usage.agent, usage.model, usage.input, usage.output, usage.cached ?? 0, usage.cost ?? 0, usage.at);
     return { id, ...usage };
   }
   usageOf(run: string): readonly UsageRow[] {
     return (this.db.prepare("SELECT * FROM usage WHERE run = ? ORDER BY at, id").all(run) as Row[]).map(row => ({
       id: row.id as string, actor: row.actor as string, thread: row.thread as string, run: row.run as string, agent: row.agent as string, model: row.model as string,
-      input: Number(row.input), output: Number(row.output), cached: Number(row.cached), at: row.at as string,
+      input: Number(row.input), output: Number(row.output), cached: Number(row.cached), cost: Number(row.cost ?? 0), at: row.at as string,
     }));
   }
   // UI requests (CHAT-3, UI-BOUNDARY-4/5): a request to the bound page is a record; it is answered once by compare-and-set.

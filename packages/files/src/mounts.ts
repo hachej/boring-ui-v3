@@ -4,7 +4,8 @@
  * canonical (FILES-5). A handler holds a router, never the table (AGENT-2).
  */
 import { canonicalPath, isMountName } from "./address.ts";
-import { FileProviderError, type FileAddress, type FileProvider } from "./index.ts";
+import { FileProviderError } from "./errors.ts";
+import type { FileAddress, FileProvider } from "./index.ts";
 
 export type MountTable = Readonly<Record<string, FileProvider>>;
 

@@ -71,3 +71,16 @@ test("an unauthenticated request is refused before anything is recorded", async 
   assert.equal((await call("POST", "/agents/summarise/runs", { inputs: { note: "x" } })).status, 401);
   assert.equal((await call("GET", "/.well-known/boring.json")).status, 200, "the manifest is public");
 });
+
+test("AGENT-12: a job's children are listed in plan order, and wait resolves when a run ends", async t => {
+  const { runtime, host } = await boot();
+  t.after(() => runtime.stop());
+  const actor = host.actor!;
+  const job = await runtime.startJob(actor, { job: "digest", inputs: { notes: ["a", "b"] } });
+  const children = runtime.children(actor, job.id);
+  assert.deepEqual(children.map(c => c.agent), ["summarise", "summarise"]);
+  const ended = await Promise.all(children.map(c => runtime.wait(actor, c.id)));
+  assert.deepEqual(ended.map(r => r.status), ["completed", "completed"]);
+  assert.equal((await runtime.wait(actor, children[0].id)).status, "completed", "an ended run resolves at once");
+  assert.throws(() => runtime.children({ id: "someone-else" }, job.id), /unknown job/);
+});

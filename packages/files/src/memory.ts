@@ -3,7 +3,8 @@
  * Revisions are one monotonic counter per provider, so a removed revision is never current again
  * (FILES-4), and every revision ever issued stays readable for exact resolution (SPEC §2.2).
  */
-import { FileProviderError, type Effect, type Entry, type FileAddress, type FileProvider, type ReadOptions, type Receipt, type WriteCondition } from "./index.ts";
+import { FileProviderError } from "./errors.ts";
+import type { Effect, Entry, FileAddress, FileProvider, ReadOptions, Receipt, WriteCondition } from "./index.ts";
 import type { ReceiptLog } from "./receipts.ts";
 
 export type MemoryProviderOptions = Readonly<{

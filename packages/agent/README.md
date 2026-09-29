@@ -45,6 +45,13 @@ const wire = mountWire({ host, runtime, basePath: "/agent" });   // wire.fetch(r
 
 Identity comes from `Host.resolveActor(request)` on every request. `Host.mounts(actor)` returns the mount table (`code`, `workspace`, `shared`, `mnt/<name>` → a `@boring/files` provider); tools reach files only through the run's grants and the router. Bodies, views, events and status codes are specified once in [CONTRACT.md](CONTRACT.md). Model access (`fake` script, `openrouter` key, `openai-codex` credentials file) is given at mount time and never stored.
 
+Other runtime options an application usually sets:
+
+- **`models`** is a record by agent name, or a function `(agent) => ({ model?, effort? })` asked at every run, so a settings page can change models without a restart.
+- **`language`** (`"en"` or `"fr"`) and **`phrases`** choose the words the library writes to models and into records (AGENT-14). A failed run carries a `failure` kind next to its `error` sentence.
+- **`runtime.children(actor, job)`** lists a job's runs, and **`runtime.wait(actor, run)`** resolves when a run ends, both checked against the owner.
+- Usage rows carry the provider's **`cost`** next to the tokens.
+
 ## What exists now
 
 Definition loaders with front-matter validation (`files:`, `ui:` included); the Flue-backed runtime (one generic Flue agent per run, output tool validated inside the tool with `terminate`, helper tools, file tools over the host's mounts with grants and receipts, page commands as `ui` tools, repair loop, `useResponseFinish` metering, durable abort); the SQLite store (threads, runs, jobs, events, ui requests, usage, receipts, idempotency keys); the Hono wire and the manifest; admission through the Host; interrupted runs failed on restart.

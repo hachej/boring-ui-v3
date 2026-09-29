@@ -150,7 +150,7 @@
             "test/agent/host.test.ts",
             "test/agent/admission.test.ts"
           ],
-          "claim": "allowedTools, mayRequest and isActive are asked at each operation and a host that answers no is obeyed there; an actor sees only their own threads, runs and jobs."
+          "claim": "allowedTools, mayRequest and isActive are asked at each operation and a host that answers no is obeyed there; an actor sees only their own threads, runs and jobs. A models function is asked for each run's agent, so model and effort can change per run without a restart."
         },
         {
           "kind": "command",
@@ -199,7 +199,7 @@
             "--test",
             "test/agent/usage.test.ts"
           ],
-          "claim": "Each model response writes one usage row attributed to actor, thread, run, agent and model, the host receives it before the next model call, and a host that refuses stops the run."
+          "claim": "Each model response writes one usage row attributed to actor, thread, run, agent and model, the host receives it before the next model call, and a host that refuses stops the run. The row carries the provider-reported cost next to the tokens."
         },
         {
           "kind": "command",
@@ -267,7 +267,7 @@
             "--test",
             "test/agent/wire.test.ts"
           ],
-          "claim": "A job plans only agents its JOB.md declares; a plan naming another agent is refused before anything is recorded; the parent completes only from completed children."
+          "claim": "A job plans only agents its JOB.md declares; a plan naming another agent is refused before anything is recorded; the parent completes only from completed children. An owner lists a job's children and waits for a run to end; another actor gets neither."
         },
         {
           "kind": "command",
@@ -292,6 +292,20 @@
             "test/agent/ui.test.ts"
           ],
           "claim": "A page command is offered only when the definition names it, the host allows it and a page registered it on the thread; running it is a request record answered once by that page for that actor, expired on timeout, ended unavailable when the page leaves or moves target; a registration cannot shadow a backend tool; the request and its answer replay by cursor."
+        }
+      ]
+    },
+    "AGENT-14": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/language.test.ts"
+          ],
+          "claim": "With language fr the history preamble, the repair request and the recorded errors are French; one phrase can be overridden; failed runs record invalid_output, error or interrupted as their failure kind."
         }
       ]
     }

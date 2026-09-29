@@ -13,12 +13,15 @@ import { start, sqlite, type Flue } from "@flue/runtime/node";
 import { init, useModel, useTool, defineTool, useInitialData, useResponseFinish, AgentRunError, type PromptUsage } from "@flue/runtime";
 import type { Provider } from "@earendil-works/pi-ai";
 import * as v from "valibot";
-import { OutputError, type AgentDefinition, type Effort } from "../index.ts";
+import type { AgentDefinition, Effort } from "../index.ts";
+import { OutputError } from "../errors.ts";
+import { PHRASES, type Phrases } from "../phrases.ts";
 
 /** A helper tool as the loop offers it to the model: the runtime wraps admission and receipts around `run`. */
 export type OfferedTool = Readonly<{ name: string; description: string; input: Record<string, unknown>; run: (input: Record<string, unknown>) => Promise<string> }>;
 
-export type ModelUsage = Readonly<{ input: number; output: number; cached: number; model: string }>;
+/** `cost` is the provider catalog's price of the call in its currency (USD for the built-ins), 0 when it gives none. */
+export type ModelUsage = Readonly<{ input: number; output: number; cached: number; cost: number; model: string }>;
 
 export type RunAgentOptions = Readonly<{
   runId: string;
@@ -33,6 +36,8 @@ export type RunAgentOptions = Readonly<{
   onUsage: (usage: ModelUsage) => Promise<void>;
   /** True once a stop was requested: no further effect, the turn ends (AGENT-6). */
   cancelled: () => boolean;
+  /** The library's words for this run (AGENT-14); English by default. */
+  phrases?: Phrases;
 }>;
 
 export type RunAgentResult = Readonly<{ output: unknown; model: string; attempts: number; trace: readonly { tool: string; input: Record<string, unknown> }[] }>;
@@ -47,6 +52,7 @@ type ActiveRun = {
   error: OutputError | null;
   trace: { tool: string; input: Record<string, unknown> }[];
   cancelled: () => boolean;
+  phrases: Phrases;
 };
 
 const runs = new Map<string, ActiveRun>();
@@ -73,14 +79,14 @@ function BoringAgent() {
   useModel(model ?? "fake/none", effort ? { thinkingLevel: effort } : undefined);
   useResponseFinish(ctx => ({ usage: ctx.response.usage }));
   // A run whose process died has no registry entry: it can only stop (AGENT-1).
-  if (!run) return "This task was interrupted. Reply only with the word: interrupted.";
+  if (!run) return PHRASES.en.interruptedTask;
   for (const helper of run.tools) {
     useTool(defineTool({
       name: helper.name,
       description: helper.description,
       input: toValibot(helper.input) as never,
       run: async ({ data }: { data: Record<string, unknown> }) => {
-        if (run.cancelled()) return { output: "Refused: this run was stopped.", terminate: true };
+        if (run.cancelled()) return { output: run.phrases.stopped, terminate: true };
         run.trace.push({ tool: helper.name, input: data ?? {} });
         return await helper.run(data ?? {});
       },
@@ -93,19 +99,19 @@ function BoringAgent() {
       description: tool.description,
       input: toValibot(tool.input) as never,
       run: async ({ data }: { data: Record<string, unknown> }) => {
-        if (run.cancelled()) return { output: "Refused: this run was stopped.", terminate: true };
+        if (run.cancelled()) return { output: run.phrases.stopped, terminate: true };
         run.attempts++;
         const known = Object.keys((tool.input.properties as Record<string, unknown>) ?? {});
         const args = Object.fromEntries(Object.entries(data ?? {}).filter(([key]) => known.includes(key)));
         try {
           run.output = run.validate(args);
           run.error = null;
-          return { output: "Recorded.", terminate: true };
+          return { output: run.phrases.recorded, terminate: true };
         } catch (error) {
           if (!(error instanceof OutputError)) throw error;
           run.error = error;
-          if (run.attempts > run.repairs) return { output: `Refused: ${error.message}`, terminate: true };
-          return { output: `Refused: ${error.message}. Call the tool again with the complete corrected output.` };
+          if (run.attempts > run.repairs) return { output: run.phrases.refused(error.message), terminate: true };
+          return { output: run.phrases.refusedRetry(error.message) };
         }
       },
     }));
@@ -124,7 +130,7 @@ export async function stopFlue() { if (flue) { const current = flue; flue = null
 
 const usageOf = (metadata: Record<string, unknown> | undefined, model: string): ModelUsage => {
   const u = (metadata?.usage as Partial<PromptUsage> | undefined) ?? {};
-  return { input: u.input ?? 0, output: u.output ?? 0, cached: (u.cacheRead ?? 0) + (u.cacheWrite ?? 0), model };
+  return { input: u.input ?? 0, output: u.output ?? 0, cached: (u.cacheRead ?? 0) + (u.cacheWrite ?? 0), cost: u.cost?.total ?? 0, model };
 };
 
 export class CancelledError extends Error {}
@@ -133,11 +139,12 @@ export class CancelledError extends Error {}
 export async function runAgent(definition: AgentDefinition, options: RunAgentOptions): Promise<RunAgentResult> {
   if (!flue) throw new Error("the Flue runtime is not started");
   const { runId, model, repairs = 2 } = options;
-  const run: ActiveRun = { definition, tools: options.tools ?? [], validate: options.validate ?? (x => x), repairs, attempts: 0, output: undefined, error: null, trace: [], cancelled: options.cancelled };
+  const phrases = options.phrases ?? PHRASES.en;
+  const run: ActiveRun = { definition, tools: options.tools ?? [], validate: options.validate ?? (x => x), repairs, attempts: 0, output: undefined, error: null, trace: [], cancelled: options.cancelled, phrases };
   runs.set(runId, run);
   const history = options.history ?? [];
   const text = history.length
-    ? `# Earlier turns\n\n${history.map(m => `**${m.role === "user" ? "Person" : "Agent"}**: ${m.content}`).join("\n\n")}\n\n---\n\n${options.message}`
+    ? `# ${phrases.earlierTurns}\n\n${history.map(m => `**${m.role === "user" ? phrases.person : phrases.agent}**: ${m.content}`).join("\n\n")}\n\n---\n\n${options.message}`
     : options.message;
   const handle = init(BoringAgent, { id: `${definition.name}-${runId}` });
   const send = async (message: string, initialData?: Record<string, unknown>) => {
@@ -152,28 +159,28 @@ export async function runAgent(definition: AgentDefinition, options: RunAgentOpt
       const tool = definition.tool!;
       // The model answered in text instead of calling its tool: ask once more per repair.
       for (let i = 0; i < repairs && run.output === undefined && run.attempts <= repairs; i++) {
-        reply = await send(run.error ? `Refused: ${run.error.message}` : `Call the tool ${tool.name} with the complete output.`);
+        reply = await send(run.error ? phrases.refused(run.error.message) : phrases.callTool(tool.name));
       }
-      if (run.output === undefined) throw new OutputError(run.error?.message ?? `Call the tool ${tool.name} with the complete output.`);
+      if (run.output === undefined) throw new OutputError(run.error?.message ?? phrases.callTool(tool.name));
       return { output: run.output, model, attempts: Math.max(1, run.attempts), trace: run.trace };
     }
     let lastError: OutputError | null = null;
     for (let attempt = 0; attempt <= repairs; attempt++) {
       try {
-        if (!reply.text?.trim()) throw new OutputError("Empty answer: reply with the document in markdown.");
+        if (!reply.text?.trim()) throw new OutputError(phrases.emptyAnswer);
         return { output: run.validate(reply.text.trim()), model, attempts: attempt + 1, trace: run.trace };
       } catch (error) {
         if (!(error instanceof OutputError)) throw error;
         lastError = error;
         if (attempt === repairs) break;
-        reply = await send(`Refused: ${error.message}`);
+        reply = await send(phrases.refused(error.message));
       }
     }
     throw lastError;
   } catch (error) {
     if (error instanceof AgentRunError && error.outcome === "aborted") throw new CancelledError("aborted");
     if (error instanceof CancelledError) throw error;
-    if (error instanceof OutputError) throw new OutputError(`the agent did not produce a valid output: ${error.message}`);
+    if (error instanceof OutputError) throw new OutputError(phrases.invalidOutput(error.message));
     throw error;
   } finally {
     runs.delete(runId);
