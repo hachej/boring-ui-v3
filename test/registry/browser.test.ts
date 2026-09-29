@@ -109,6 +109,20 @@ test("registry-host: the installed items work for the person and the agent, in l
     await shot(page, "aside:has([data-boring=composer])", "chat-light");
   });
 
+  await t.test("the agent draws on the canvas through its tools; the .tldraw file holds the shapes at the receipt's revision", async () => {
+    await page.click("[data-path='/workspace/boards']");
+    await page.click("[data-path='/workspace/boards/plan.tldraw']");
+    await page.locator("[data-boring=canvas] .tl-container").waitFor();
+    await say(page, "draw the plan");
+    await page.locator("[data-boring=tool][data-outcome=committed]:has-text('canvas_create_shapes')").waitFor();
+    const file = await workspace.read(at("boards/plan.tldraw"));
+    const document = JSON.parse(file.content).document as { store: Record<string, { typeName: string }> };
+    assert.equal(Object.values(document.store).filter(r => r.typeName === "shape").length, 2);
+    assert.equal(server.receipts.entries.at(-1)!.after, file.ref.revision);
+    await page.locator("[data-boring=canvas] :text('saved · r')").first().waitFor();
+    await shot(page, "[data-boring=canvas]", "canvas-light");
+  });
+
   await t.test("/code opens read-only: no save, no write tools", async () => {
     await page.click("[data-path='/code/README.md']");
     await page.locator("[data-boring=markdown-editor] :text('read-only')").first().waitFor();
@@ -131,6 +145,9 @@ test("registry-host: the installed items work for the person and the agent, in l
     await dark.goto(`${server.url}/?theme=dark&open=/workspace/images/diagram.svg#thread=${thread}`);
     await dark.locator("[data-boring=image-viewer] img").waitFor();
     await shot(dark, "[data-boring=image-viewer]", "image-viewer-dark");
+    await dark.goto(`${server.url}/?theme=dark&open=/workspace/boards/plan.tldraw#thread=${thread}`);
+    await dark.locator("[data-boring=canvas] .tl-shape").first().waitFor();
+    await shot(dark, "[data-boring=canvas]", "canvas-dark");
     await dark.screenshot({ path: path.join(shots, "registry-host-dark.png") });
     await dark.close();
   });

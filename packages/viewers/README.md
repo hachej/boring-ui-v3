@@ -15,11 +15,11 @@ const { state, actions, tools } = useMarkdownDocument({ files, address: "/worksp
 // tools:   the same operations as ViewerTools; with `agent` they are registered as page commands `markdown_*`
 ```
 
-Every hook also exists without React (`createFileTree`, `createMarkdownDocument`, `createImage`) for tests and scripts.
+Every hook also exists without React (`createFileTree`, `createMarkdownDocument`, `createImage`, `createCanvasDocument`) for tests and scripts.
 
 ## The tools
 
-A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `markdown`, `image` by default); the agent's definition lists the ones it may request under `ui:` and the host allows them by name. Each result is one of `applied` (local), `proposed` (waits for the person), `committed` (with the provider's receipt), `stale`, `conflict`, `denied`, `unavailable` (VIEWERS-3).
+A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `markdown`, `image`, `canvas` by default); the agent's definition lists the ones it may request under `ui:` and the host allows them by name. Each result is one of `applied` (local), `proposed` (waits for the person), `committed` (with the provider's receipt), `stale`, `conflict`, `denied`, `unavailable` (VIEWERS-3).
 
 | Hook | Tool | Effect | Result |
 |---|---|---|---|
@@ -34,9 +34,17 @@ A tool's name reaches the agent as `<namespace>_<name>` (namespaces `tree`, `mar
 | | `apply_patch` | write (bound to the revision read) | `committed` + receipt; `stale` at another revision; `conflict` while the person has unsaved edits |
 | `useImage` | `zoom`, `pan`, `fit`, `annotate` | local (a highlight is temporary) | `applied` |
 | | `describe` | read (metadata only, never pixels) | `applied` |
+| `useCanvasDocument` | `get_shapes` | read (shapes, selection, canvas `version`, file revision) | `applied` |
+| | `select` | local | `applied`, `denied` for an unknown id |
+| | `create_shapes` | write (geo, text, note; optional `version` guard), saved at the revision read | `committed` + receipt and the new ids |
+| | `update_shapes` | write (by id, bound to the `version` read), saved | `committed` + receipt; `stale` at another version; `conflict` over the person's unsaved changes |
 
 A read-only viewer (`readOnly`, or a read-only root of the tree) gets a provider that refuses every mutation and offers no `write` tool (VIEWERS-2). Saving writes at the revision last read; a stale save sets `state.conflict` for the conflict banner and changes nothing (VIEWERS-5).
 
 ## Images and the text contract
 
 The file contract carries text. An SVG shows from its text; a raster stored as a `data:image/…;base64,` URL shows as is; any other raster file needs `source(address, revision)`, a URL the application serves. A byte-level provider operation is not in the contract yet.
+
+## The canvas and its engine
+
+`useCanvasDocument` never imports a drawing engine: the component attaches one through the `CanvasEditor` adapter (shapes, selection, create, update, snapshot, load, the person's changes). The registry's canvas item attaches tldraw. The file is `{ "format": "boring-canvas", "version": 1, "document": <engine snapshot> }`.

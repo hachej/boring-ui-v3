@@ -9,6 +9,8 @@
 //   "note"                      write_file /workspace/notes/agent-note.md (the tree shows it after its refresh)
 //   "zoom" | "image"            image_describe → image_zoom → image_annotate
 //   "code"                      read_file /code/README.md
+//   "draw" | "sticky"           canvas_get_shapes → canvas_create_shapes (a box and a sticky note, saved with a receipt)
+//   "move"                      canvas_get_shapes → canvas_update_shapes on the first shape, bound to the version read
 // A tool result reaches the model as text, JSON possibly encoded twice (the tool's value, then the transcript).
 const parse = text => { let value = text; for (let i = 0; i < 2 && typeof value === "string"; i++) { try { value = JSON.parse(value); } catch { break; } } return value; };
 
@@ -62,6 +64,24 @@ export const scriptedModel = {
       if (results.length === 2) { const d = results[0]?.detail ?? {}; return calls(["image_annotate", { x: Math.round((d.width ?? 100) / 4), y: Math.round((d.height ?? 100) / 4), width: Math.round((d.width ?? 100) / 2), height: Math.round((d.height ?? 100) / 2), label: "look here" }]); }
       const d = results[0]?.detail ?? {};
       return say(`The image is ${d.width}×${d.height} (${d.mime}); I zoomed to 200% and highlighted its centre.`);
+    }
+    if (/draw|sticky|move/.test(lower)) {
+      if (!has("canvas_get_shapes")) return say("Open a canvas first.");
+      if (!results.length) return calls(["canvas_get_shapes", {}]);
+      const board = results[0]?.detail ?? {};
+      if (results.length === 1) {
+        if (/move/.test(lower)) {
+          const first = board.shapes?.[0];
+          if (!first) return say("The canvas is empty; nothing to move.");
+          return calls(["canvas_update_shapes", { updates: [{ id: first.id, x: first.x + 120, color: "green" }], version: board.version }]);
+        }
+        return calls(["canvas_create_shapes", { version: board.version, shapes: [
+          { type: "geo", geo: "rectangle", x: 80, y: 80, w: 220, h: 100, text: "Viewers", color: "green" },
+          { type: "note", x: 360, y: 80, text: "Risk: a stale save", color: "yellow" },
+        ] }]);
+      }
+      const r = results[1];
+      return say(`The canvas change was ${outcome(r)}${r?.evidence?.receipt ? ` (revision ${r.evidence.receipt.after})` : ""}.`);
     }
     if (/\bcode\b/.test(lower)) {
       if (!results.length) return calls(["read_file", { path: "/code/README.md" }]);
