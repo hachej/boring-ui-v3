@@ -1,25 +1,124 @@
 {
   "version": 1,
   "invariants": {
-    "BORING-1": { "verifiers": [
-      { "kind": "pending", "claim": "A tool handler receives issued operations bound to the admitted actor, thread and grants; payload identifiers grant nothing.", "reason": "arrives with the agent runtime: node --test test/agent/admission.test.ts" }
-    ] },
-    "BORING-2": { "verifiers": [
-      { "kind": "pending", "claim": "Every file and record mutation through a tool, an endpoint or the tree lands in the receipt log inside the same transaction, attributed to actor, thread, run and tool.", "reason": "arrives with the files store and the agent runtime: node --test test/files/receipts.test.ts test/agent/attribution.test.ts" }
-    ] },
-    "BORING-3": { "verifiers": [
-      { "kind": "pending", "claim": "One conformance suite passes against every file provider and against the HTTP routes; a provider that cannot honour a condition refuses instead of degrading.", "reason": "arrives with the files package: node --test test/files/conformance.test.ts" }
-    ] },
-    "BORING-4": { "verifiers": [
-      { "kind": "pending", "claim": "A chat and a tree reconnecting after a restart render the same state as before from records alone.", "reason": "arrives with the chat and the dev host: node bin/boring.mjs smoke" }
-    ] },
-    "BORING-5": { "verifiers": [
-      { "kind": "command", "command": ["npm", "run", "test:architecture"], "claim": "The checker and registry loader reject what they must: forbidden imports, cycles, undeclared externals, duplicate or orphan laws, accidentally green verifiers." },
-      { "kind": "command", "command": ["npm", "run", "test:formal"], "claim": "Each bounded model detects its own removed guard; a syntax error is not a passing negative test; missing TLC fails." }
-    ] },
-    "BORING-6": { "verifiers": [
-      { "kind": "command", "command": ["node", "tools/check.mjs"], "claim": "Package imports follow the declared direction, including type-only edges and computed loading." },
-      { "kind": "command", "command": ["npm", "run", "typecheck"], "claim": "The public contracts of the three packages typecheck together." }
-    ] }
+    "BORING-1": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/admission.test.ts"
+          ],
+          "claim": "A tool handler receives an effect bound to the admitted actor, thread and run; identifiers in the model's arguments grant nothing."
+        },
+        {
+          "kind": "pending",
+          "claim": "The same holds for text in a file, a record or a page.",
+          "reason": "arrives with the files providers and the chat bridge: node --test test/files/conformance.test.ts test/chat/bridge.test.ts"
+        }
+      ]
+    },
+    "BORING-2": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/attribution.test.ts"
+          ],
+          "claim": "Every tool call through the runtime lands in the receipt log attributed to actor, thread, run and tool."
+        },
+        {
+          "kind": "pending",
+          "claim": "File and record mutations commit with their receipt in the same transaction.",
+          "reason": "arrives with the files store: node --test test/files/receipts.test.ts"
+        }
+      ]
+    },
+    "BORING-3": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "One conformance suite passes against every file provider and against the HTTP routes; a provider that cannot honour a condition refuses instead of degrading.",
+          "reason": "arrives with the files package: node --test test/files/conformance.test.ts"
+        }
+      ]
+    },
+    "BORING-4": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/chat/client.test.ts"
+          ],
+          "claim": "A chat client reconnecting rebuilds the same transcript from the wire's cursor replay alone."
+        },
+        {
+          "kind": "pending",
+          "claim": "The tree does the same from file records.",
+          "reason": "arrives with the files package: node bin/boring.mjs smoke"
+        }
+      ]
+    },
+    "BORING-5": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "npm",
+            "run",
+            "test:architecture"
+          ],
+          "claim": "The checker and registry loader reject what they must: forbidden imports, cycles, undeclared externals, duplicate or orphan laws, accidentally green verifiers."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "npm",
+            "run",
+            "test:formal"
+          ],
+          "claim": "Each bounded model detects its own removed guard; a syntax error is not a passing negative test; missing TLC fails."
+        }
+      ]
+    },
+    "BORING-6": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "tools/check.mjs"
+          ],
+          "claim": "Package imports follow the declared direction, including type-only edges and computed loading."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "claim": "The public contracts of the three packages typecheck together."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/definitions.test.ts"
+          ],
+          "claim": "Definition loading validates front matter with errors naming the file and field; a registry never grants anything."
+        }
+      ]
+    }
   }
 }

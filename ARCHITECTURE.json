@@ -1,15 +1,53 @@
 {
   "version": 2,
   "packages": {
-    "files": { "dependsOn": [], "typeOnlyDependsOn": [] },
-    "agent": { "dependsOn": ["files"], "typeOnlyDependsOn": [] },
-    "chat": { "dependsOn": [], "typeOnlyDependsOn": ["agent"] }
+    "files": {
+      "dependsOn": [],
+      "typeOnlyDependsOn": []
+    },
+    "agent": {
+      "dependsOn": [
+        "files"
+      ],
+      "typeOnlyDependsOn": []
+    },
+    "chat": {
+      "dependsOn": [],
+      "typeOnlyDependsOn": [
+        "agent"
+      ]
+    }
   },
   "externalDependencies": {
     "files": [],
-    "agent": [],
-    "chat": []
+    "agent": [
+      "node:fs",
+      "node:path",
+      "node:url",
+      "node:crypto",
+      "node:events",
+      "node:sqlite",
+      "@flue/runtime",
+      "@flue/runtime/node",
+      "@earendil-works/pi-ai",
+      "@earendil-works/pi-ai/providers/openrouter.models",
+      "@earendil-works/pi-ai/providers/openai-codex.models",
+      "@earendil-works/pi-ai/providers/openai-codex",
+      "@earendil-works/pi-ai/api/openai-completions.lazy",
+      "@earendil-works/pi-ai/api/openai-codex-responses.lazy",
+      "valibot",
+      "hono"
+    ],
+    "chat": [
+      "react",
+      "react/jsx-runtime"
+    ]
   },
-  "computedImports": {},
-  "consumers": ["examples", "test"]
+  "computedImports": {
+    "packages/agent/src/definitions/load.ts": "definition modules (agents/<name>/index.mjs, jobs/<name>/index.mjs, conversations/<name>/index.mjs) of the application being loaded"
+  },
+  "consumers": [
+    "examples",
+    "test"
+  ]
 }

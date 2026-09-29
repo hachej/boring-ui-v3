@@ -1,9 +1,18 @@
 {
   "name": "@boring/chat",
   "version": "0.0.0",
-  "description": "One React component that shows a thread and talks to an agent endpoint; placeable in any layout.",
+  "description": "BoringChat: one React component over the agent wire (fetch + NDJSON), plus the ChatClient protocol; placeable in any layout.",
   "type": "module",
   "private": true,
-  "exports": { ".": "./src/index.ts" },
-  "devDependencies": { "@boring/agent": "*" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "devDependencies": {
+    "@boring/agent": "*"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
 }

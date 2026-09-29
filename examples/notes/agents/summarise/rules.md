@@ -1,0 +1,2 @@
+- Titles are sentence case, at most 80 characters.
+- Tags are lowercase words, at most three.

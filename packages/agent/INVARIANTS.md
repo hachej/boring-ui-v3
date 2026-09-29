@@ -1,6 +1,6 @@
 # Agent laws
 
-An agent is a loop that turns a person's messages on a thread into runs, and runs into tool calls. The loop is durable: its threads, runs, ask rows, approvals and receipts live in SQLite. It reaches files only through the `files` contract and records only through the host's tools. The host is the application that embeds it, and the [Host contract](src/index.ts) is the only way authority enters.
+An agent is a definition in files (`agents/<name>/agent.md`) that the runtime turns into runs on Flue: one message in, one validated output out, helper tool calls in between. Jobs (`jobs/<name>/JOB.md`) start predeclared children; conversations (`conversations/<name>/CONVERSATION.md`) add history to one agent. The runtime is durable: its threads, runs, jobs, events, usage and receipts live in SQLite. It reaches files only through the `files` contract and records only through the host's tools. The host is the application that embeds it, and the [Host contract](src/index.ts) is the only way authority enters.
 
 ## AGENT-1 — a run is durable and ends once
 
@@ -41,3 +41,11 @@ The library defines no role. An actor carries the application's roles as opaque 
 ## AGENT-10 — every model call is metered
 
 No model call happens without a usage row in the store naming actor, thread, run, agent, model and tokens, and the host is handed that row before the run continues. Budgets and quotas are host decisions taken through `mayRequest` and `isActive`; the loop supplies the numbers, never the policy.
+
+## AGENT-11 — request-work is idempotent by key
+
+A request that carries an idempotency key is recorded once per actor and key. Repeating it with the same request returns the recorded run, job or message; repeating it with a different request is refused. The key binds the caller, the target and the operation, never the model's output.
+
+## AGENT-12 — a job's composition is predeclared
+
+A job definition names the agents it may start. The plan a job makes for one input is frozen when the job starts, a child runs only under its running parent, and the parent completes only from completed children. A plan that names an undeclared agent is refused before anything is recorded.
