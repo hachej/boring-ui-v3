@@ -1,0 +1,40 @@
+name: registry-pages
+# Serves the shadcn registry: public/ becomes the site, so an item is at https://hachej.github.io/boring-ui-v3/r/<item>.json.
+# The build job always runs and checks public/r is current; the deploy job needs Pages enabled for the repository
+# (a public repository, or a plan with private Pages) and is skipped otherwise.
+on:
+  push:
+    branches: [main]
+    paths: ["registry.json", "registry/**", "public/**", ".github/workflows/registry-pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: registry-pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node bin/boring.mjs registry check
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: build
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "approval-card",
+  "title": "Approval card",
+  "description": "The ApprovalCard slot: an approval requested on one exact file revision.",
+  "dependencies": [
+    "@boring/chat",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "badge",
+    "card"
+  ],
+  "files": [
+    {
+      "path": "registry/approval-card/approval-card.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: approval-card. An approval the agent requested on one file revision (the ApprovalCard slot).\n// Approval binds the authenticated person and that exact revision (UI-BOUNDARY-5); the card shows what is asked.\nimport { ShieldCheck } from \"lucide-react\"\nimport type { SlotProps } from \"@boring/chat\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { Card, CardContent } from \"@/components/ui/card\"\n\nexport function ApprovalCard({ part }: SlotProps[\"ApprovalCard\"]) {\n  const { mount, path, revision } = part.subject\n  return (\n    <Card data-boring=\"approve\" data-answered={part.answered ? \"\" : undefined} className=\"gap-0 py-0 shadow-none\">\n      <CardContent className=\"flex items-start gap-2 p-3 text-sm\">\n        <ShieldCheck className=\"mt-0.5 size-4 shrink-0 text-primary\" />\n        <div className=\"flex-1\">\n          <p>Approve this version?</p>\n          <p className=\"font-mono text-xs text-muted-foreground\">/{mount}/{path} @ {revision}</p>\n        </div>\n        <Badge variant={part.answered ? \"secondary\" : \"outline\"}>{part.answered ? \"decided\" : \"awaiting you\"}</Badge>\n      </CardContent>\n    </Card>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "categories": [
+    "chat"
+  ],
+  "type": "registry:component"
+}

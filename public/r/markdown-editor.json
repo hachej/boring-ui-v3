@@ -1,0 +1,116 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "markdown-editor",
+  "title": "Markdown editor",
+  "description": "A Tiptap 3 markdown editor over one file: saves against the revision it read, shows a conflict banner on a stale save, and shows the agent's proposed patches as a diff the person accepts. Tools: markdown_go_to_heading, markdown_get_selection, markdown_read_document, markdown_propose_patch, markdown_apply_patch.",
+  "dependencies": [
+    "@boring/viewers",
+    "@boring/files",
+    "@tiptap/react@^3.31.3",
+    "@tiptap/pm@^3.31.3",
+    "@tiptap/starter-kit@^3.31.3",
+    "@tiptap/markdown@^3.31.3",
+    "@tiptap/extensions@^3.31.3",
+    "@tiptap/extension-list@^3.31.3",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "badge",
+    "button",
+    "separator",
+    "https://hachej.github.io/boring-ui-v3/r/conflict-banner.json"
+  ],
+  "files": [
+    {
+      "path": "registry/markdown-editor/markdown-editor.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: markdown-editor. Tiptap 3 (MIT core + StarterKit + @tiptap/markdown, no Pro extensions)\n// renders the buffer of @boring/viewers' useMarkdownDocument; the hook owns revisions, saving, proposals and\n// the agent's tools (markdown_read_document, markdown_propose_patch, ...). The editor emits only on the person's\n// own edits, so a document that is opened and not touched is never rewritten (round-trip fidelity).\nimport { useEffect, useRef, useState } from \"react\"\nimport { EditorContent, useEditor, useEditorState } from \"@tiptap/react\"\nimport StarterKit from \"@tiptap/starter-kit\"\nimport { Markdown } from \"@tiptap/markdown\"\nimport { Placeholder } from \"@tiptap/extensions\"\nimport { TaskItem, TaskList } from \"@tiptap/extension-list\"\nimport { Bold, Code, Heading1, Heading2, Italic, List, ListChecks, ListOrdered, Lock, Quote, Save, Strikethrough } from \"lucide-react\"\nimport type { FileProvider } from \"@boring/files/web\"\nimport { useMarkdownDocument, type AgentBinding, type Effect } from \"@boring/viewers\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { Button } from \"@/components/ui/button\"\nimport { Separator } from \"@/components/ui/separator\"\nimport { ConflictBanner } from \"@/components/conflict-banner\"\nimport { ProposalDiff } from \"@/components/proposal-diff\"\nimport { cn } from \"@/lib/utils\"\n\nexport type MarkdownEditorProps = {\n  files: FileProvider\n  /** `/workspace/notes/plan.md` */\n  address: string\n  readOnly?: boolean\n  /** The chat's client and thread: the document's tools become the agent's. */\n  agent?: AgentBinding\n  effect?: Effect\n  placeholder?: string\n  className?: string\n}\n\nexport function MarkdownEditor({ files, address, readOnly, agent, effect, placeholder = \"Start writing…\", className }: MarkdownEditorProps) {\n  const { state, actions } = useMarkdownDocument({ files, address, readOnly, agent, effect })\n  const [raw, setRaw] = useState(false)\n  const lastEmitted = useRef<string | null>(null)\n  const interacted = useRef(false)\n\n  const editor = useEditor({\n    extensions: [\n      StarterKit.configure({ link: { openOnClick: false, autolink: true } }),\n      TaskList,\n      TaskItem.configure({ nested: true }),\n      Placeholder.configure({ placeholder }),\n      Markdown.configure({ markedOptions: { gfm: true, breaks: false } }),\n    ],\n    content: \"\",\n    editable: !state.readOnly,\n    editorProps: { attributes: { class: \"boring-prose mx-auto max-w-[72ch] px-8 py-6 focus:outline-none min-h-[240px]\" } },\n    onUpdate: ({ editor: e }) => {\n      // Tiptap also fires while it settles on mount; only the person's own edits reach the buffer.\n      if (!(e.isFocused || interacted.current)) return\n      const markdown = e.getMarkdown()\n      lastEmitted.current = markdown\n      actions.edit(markdown)\n    },\n    onSelectionUpdate: ({ editor: e }) => {\n      const { from, to } = e.state.selection\n      actions.select(to > from ? { from, to, text: e.state.doc.textBetween(from, to, \"\\n\") } : null)\n    },\n  }, [address])\n\n  // The buffer changed from outside the editor (load, an accepted proposal, a reload): show it.\n  useEffect(() => {\n    if (!editor || editor.isDestroyed || state.status !== \"ready\") return\n    if (state.buffer === lastEmitted.current) return\n    editor.commands.setContent(state.buffer, { contentType: \"markdown\", emitUpdate: false })\n    lastEmitted.current = state.buffer\n  }, [editor, state.buffer, state.status])\n  useEffect(() => { editor?.setEditable(!state.readOnly) }, [editor, state.readOnly])\n\n  // go_to_heading: scroll to the n-th heading the hook parsed, and put the caret there.\n  useEffect(() => {\n    if (!editor || !state.navigation) return\n    const target = editor.view.dom.querySelectorAll(\"h1, h2, h3, h4, h5, h6\")[state.navigation.heading.index] as HTMLElement | undefined\n    if (!target) return\n    target.scrollIntoView({ block: \"start\", behavior: \"smooth\" })\n    target.setAttribute(\"data-boring-flash\", \"\")\n    const timer = setTimeout(() => target.removeAttribute(\"data-boring-flash\"), 1200)\n    return () => clearTimeout(timer)\n  }, [editor, state.navigation])\n\n  const marks = useEditorState({ editor, selector: ({ editor: e }) => e ? { bold: e.isActive(\"bold\"), italic: e.isActive(\"italic\"), strike: e.isActive(\"strike\"), code: e.isActive(\"code\"), h1: e.isActive(\"heading\", { level: 1 }), h2: e.isActive(\"heading\", { level: 2 }), bullet: e.isActive(\"bulletList\"), ordered: e.isActive(\"orderedList\"), task: e.isActive(\"taskList\"), quote: e.isActive(\"blockquote\") } : null })\n  const tool = (label: string, active: boolean | undefined, run: () => void, icon: React.ReactNode) => (\n    <Button type=\"button\" variant=\"ghost\" size=\"icon\" className={cn(\"size-7\", active && \"bg-accent text-accent-foreground\")} aria-pressed={!!active} aria-label={label} title={label} onClick={() => { interacted.current = true; run() }} disabled={state.readOnly || raw}>{icon}</Button>\n  )\n  const name = address.split(\"/\").pop()\n\n  return (\n    <div\n      data-boring=\"markdown-editor\"\n      data-dirty={state.dirty ? \"\" : undefined}\n      className={cn(\"flex h-full min-h-0 flex-col bg-background text-foreground\", className)}\n      onPointerDownCapture={() => { interacted.current = true }}\n      onKeyDownCapture={e => { interacted.current = true; if ((e.metaKey || e.ctrlKey) && e.key === \"s\") { e.preventDefault(); void actions.save() } }}\n    >\n      <div className=\"flex items-center gap-1 border-b px-3 py-1.5\">\n        <span className=\"mr-2 truncate text-sm font-medium\" title={address}>{name}</span>\n        {state.readOnly && <Badge variant=\"secondary\" className=\"gap-1\"><Lock className=\"size-3\" />read-only</Badge>}\n        {!state.readOnly && (\n          <>\n            {tool(\"Bold\", marks?.bold, () => editor?.chain().focus().toggleBold().run(), <Bold className=\"size-4\" />)}\n            {tool(\"Italic\", marks?.italic, () => editor?.chain().focus().toggleItalic().run(), <Italic className=\"size-4\" />)}\n            {tool(\"Strikethrough\", marks?.strike, () => editor?.chain().focus().toggleStrike().run(), <Strikethrough className=\"size-4\" />)}\n            {tool(\"Code\", marks?.code, () => editor?.chain().focus().toggleCode().run(), <Code className=\"size-4\" />)}\n            <Separator orientation=\"vertical\" className=\"mx-1 h-4\" />\n            {tool(\"Heading 1\", marks?.h1, () => editor?.chain().focus().toggleHeading({ level: 1 }).run(), <Heading1 className=\"size-4\" />)}\n            {tool(\"Heading 2\", marks?.h2, () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), <Heading2 className=\"size-4\" />)}\n            {tool(\"Bullet list\", marks?.bullet, () => editor?.chain().focus().toggleBulletList().run(), <List className=\"size-4\" />)}\n            {tool(\"Numbered list\", marks?.ordered, () => editor?.chain().focus().toggleOrderedList().run(), <ListOrdered className=\"size-4\" />)}\n            {tool(\"Task list\", marks?.task, () => editor?.chain().focus().toggleTaskList().run(), <ListChecks className=\"size-4\" />)}\n            {tool(\"Quote\", marks?.quote, () => editor?.chain().focus().toggleBlockquote().run(), <Quote className=\"size-4\" />)}\n          </>\n        )}\n        <div className=\"ml-auto flex items-center gap-2\">\n          <span data-boring=\"save-state\" className=\"text-xs text-muted-foreground\">\n            {state.status !== \"ready\" ? state.status : state.saving ? \"saving…\" : state.dirty ? \"unsaved\" : `saved · r${state.saved?.revision ?? \"?\"}`}\n          </span>\n          <Button type=\"button\" variant={raw ? \"secondary\" : \"ghost\"} size=\"sm\" className=\"h-7 font-mono text-xs\" onClick={() => setRaw(r => !r)} aria-pressed={raw}>MD</Button>\n          {!state.readOnly && <Button type=\"button\" size=\"sm\" className=\"h-7\" onClick={() => void actions.save()} disabled={!state.dirty || state.saving}><Save className=\"size-3.5\" />Save</Button>}\n        </div>\n      </div>\n      {state.conflict && <ConflictBanner className=\"rounded-none border-x-0 border-t-0\" current={state.conflict.current} onReload={actions.reload} onOverwrite={actions.overwrite} onDismiss={actions.dismissConflict} />}\n      {state.proposals.map(p => (\n        <ProposalDiff key={p.id} proposal={p} readOnly={state.readOnly} onAccept={() => actions.accept(p.id)} onReject={() => actions.reject(p.id)} />\n      ))}\n      {state.error && state.status !== \"ready\" && <p role=\"alert\" className=\"px-4 py-3 text-sm text-destructive\">{state.error}</p>}\n      <div className=\"min-h-0 flex-1 overflow-auto\">\n        {raw ? (\n          <textarea\n            aria-label=\"Raw markdown\"\n            className=\"h-full min-h-[240px] w-full resize-none bg-background px-8 py-6 font-mono text-[13px] leading-6 outline-none\"\n            value={state.buffer}\n            readOnly={state.readOnly}\n            spellCheck={false}\n            onChange={e => actions.edit(e.target.value)}\n          />\n        ) : (\n          <EditorContent editor={editor} />\n        )}\n      </div>\n    </div>\n  )\n}\n",
+      "type": "registry:component"
+    },
+    {
+      "path": "registry/markdown-editor/proposal-diff.tsx",
+      "content": "\"use client\"\n\n// A proposed patch as the person sees it: the agent's summary and a line diff, with Accept and Reject.\n// Accepting is the person's act (VIEWERS-6); it saves at the revision the proposal saw and shows the result.\nimport { useState } from \"react\"\nimport { Check, Sparkles, X } from \"lucide-react\"\nimport type { Proposal } from \"@boring/viewers\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { Button } from \"@/components/ui/button\"\nimport { cn } from \"@/lib/utils\"\n\ntype Result = { outcome: string; detail?: unknown }\ntype Line = Proposal[\"diff\"][number]\n\n/** Changed lines with two lines of context; longer unchanged runs fold into one marker. */\nfunction hunks(diff: readonly Line[], context = 2): (Line | { kind: \"fold\"; count: number })[] {\n  const keep = diff.map((_, i) => diff.slice(Math.max(0, i - context), i + context + 1).some(l => l.kind !== \"same\"))\n  const out: (Line | { kind: \"fold\"; count: number })[] = []\n  diff.forEach((line, i) => {\n    if (keep[i]) out.push(line)\n    else if (out.at(-1)?.kind === \"fold\") (out.at(-1) as { count: number }).count++\n    else out.push({ kind: \"fold\", count: 1 })\n  })\n  return out\n}\n\nexport function ProposalDiff({ proposal, onAccept, onReject, readOnly }: { proposal: Proposal; onAccept: () => Promise<Result>; onReject: () => void; readOnly?: boolean }) {\n  const [result, setResult] = useState<Result | null>(null)\n  const changed = proposal.diff.filter(l => l.kind !== \"same\").length\n  return (\n    <section data-boring=\"proposal\" data-proposal={proposal.id} className=\"border-b bg-muted/50 px-4 py-3\">\n      <div className=\"mb-2 flex items-center gap-2 text-sm\">\n        <Sparkles className=\"size-4 text-primary\" />\n        <span className=\"font-medium\">{proposal.summary || \"Proposed change\"}</span>\n        <Badge variant=\"outline\">{proposal.from}</Badge>\n        <span className=\"text-xs text-muted-foreground\">{changed} line{changed === 1 ? \"\" : \"s\"}</span>\n        <div className=\"ml-auto flex gap-1\">\n          <Button size=\"sm\" variant=\"ghost\" className=\"h-7\" onClick={onReject}><X className=\"size-3.5\" />Reject</Button>\n          <Button size=\"sm\" className=\"h-7\" disabled={readOnly} onClick={async () => setResult(await onAccept())}><Check className=\"size-3.5\" />Accept</Button>\n        </div>\n      </div>\n      <pre className=\"max-h-48 overflow-auto rounded-md border bg-background p-2 font-mono text-xs leading-5\">\n        {hunks(proposal.diff).map((line, i) => line.kind === \"fold\" ? (\n          <div key={i} className=\"px-1 text-muted-foreground\">⋯ {line.count} unchanged line{line.count === 1 ? \"\" : \"s\"}</div>\n        ) : (\n          <div key={i} data-diff={line.kind} className={cn(\"whitespace-pre-wrap px-1\", line.kind === \"add\" && \"bg-primary/10 text-primary\", line.kind === \"remove\" && \"bg-destructive/10 text-destructive line-through\")}>\n            {line.kind === \"add\" ? \"+ \" : line.kind === \"remove\" ? \"- \" : \"  \"}{line.text}\n          </div>\n        ))}\n      </pre>\n      {result && result.outcome !== \"committed\" && <p role=\"status\" className=\"mt-1 text-xs text-destructive\">{result.outcome}: {JSON.stringify(result.detail)}</p>}\n    </section>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "css": {
+    "@layer components": {
+      ".boring-prose": {
+        "line-height": "1.7"
+      },
+      ".boring-prose > * + *": {
+        "margin-top": "0.75em"
+      },
+      ".boring-prose h1": {
+        "font-size": "1.75rem",
+        "font-weight": "650",
+        "line-height": "1.2",
+        "margin-top": "1.2em"
+      },
+      ".boring-prose h2": {
+        "font-size": "1.35rem",
+        "font-weight": "600",
+        "margin-top": "1.1em"
+      },
+      ".boring-prose h3": {
+        "font-size": "1.1rem",
+        "font-weight": "600"
+      },
+      ".boring-prose ul": {
+        "list-style": "disc",
+        "padding-left": "1.5rem"
+      },
+      ".boring-prose ol": {
+        "list-style": "decimal",
+        "padding-left": "1.5rem"
+      },
+      ".boring-prose ul[data-type=taskList]": {
+        "list-style": "none",
+        "padding-left": "0.25rem"
+      },
+      ".boring-prose ul[data-type=taskList] li": {
+        "display": "flex",
+        "gap": "0.5rem"
+      },
+      ".boring-prose blockquote": {
+        "border-left": "3px solid var(--border)",
+        "padding-left": "1rem",
+        "color": "var(--muted-foreground)"
+      },
+      ".boring-prose code": {
+        "background": "var(--muted)",
+        "border-radius": "0.25rem",
+        "padding": "0.1em 0.3em",
+        "font-size": "0.9em"
+      },
+      ".boring-prose pre": {
+        "background": "var(--muted)",
+        "border-radius": "var(--radius)",
+        "padding": "0.75rem 1rem",
+        "overflow-x": "auto"
+      },
+      ".boring-prose a": {
+        "color": "var(--primary)",
+        "text-decoration": "underline"
+      },
+      ".boring-prose p.is-editor-empty:first-child::before": {
+        "content": "attr(data-placeholder)",
+        "color": "var(--muted-foreground)",
+        "float": "left",
+        "height": "0",
+        "pointer-events": "none"
+      },
+      ".boring-prose [data-boring-flash]": {
+        "background": "color-mix(in oklch, var(--primary) 18%, transparent)",
+        "border-radius": "0.25rem",
+        "transition": "background 0.6s"
+      }
+    }
+  },
+  "docs": "Needs @boring/viewers and @boring/files in your package.json. Uses Tiptap's MIT core, StarterKit, Markdown, Placeholder and task lists only (no Pro extensions).",
+  "categories": [
+    "files",
+    "editor",
+    "agent"
+  ],
+  "type": "registry:component"
+}

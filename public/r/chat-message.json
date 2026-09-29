@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "chat-message",
+  "title": "Chat message",
+  "description": "The Message and Text slots of @boring/chat's BoringChat.",
+  "dependencies": [
+    "@boring/chat"
+  ],
+  "files": [
+    {
+      "path": "registry/chat-message/chat-message.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: chat-message. A message bubble for @boring/chat's BoringChat (the Message and Text slots).\nimport type { SlotProps } from \"@boring/chat\"\nimport { cn } from \"@/lib/utils\"\n\nexport function ChatMessage({ message, children }: SlotProps[\"Message\"]) {\n  const person = message.role === \"person\"\n  return (\n    <li data-boring=\"message\" data-role={message.role} className={cn(\"flex max-w-[85%] flex-col gap-2 rounded-lg px-3 py-2 text-sm leading-relaxed\", person ? \"self-end bg-primary text-primary-foreground\" : \"self-start border bg-card text-card-foreground\")}>\n      {children}\n    </li>\n  )\n}\n\nexport function ChatText({ part }: SlotProps[\"Text\"]) {\n  return <span data-boring=\"text\" className=\"whitespace-pre-wrap\">{part.text}</span>\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "categories": [
+    "chat"
+  ],
+  "type": "registry:component"
+}

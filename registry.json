@@ -1,0 +1,122 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "boring",
+  "homepage": "https://github.com/hachej/boring-ui-v3",
+  "items": [
+    {
+      "name": "file-tree",
+      "type": "registry:component",
+      "title": "File tree",
+      "description": "A virtualised file tree over @boring/files mounts. Expand, select and filter are local; create, rename and remove go through the provider's conditions and return receipts. Its tools (tree_*) are the agent's too.",
+      "dependencies": ["@boring/viewers", "@boring/files", "react-arborist@^3.16.0", "lucide-react"],
+      "registryDependencies": ["button", "input", "dropdown-menu"],
+      "files": [{ "path": "registry/file-tree/file-tree.tsx", "type": "registry:component" }],
+      "docs": "Needs @boring/viewers and @boring/files in your package.json. Tools: tree_expand, tree_collapse, tree_select, tree_filter, tree_list, tree_create, tree_rename, tree_remove.",
+      "categories": ["files", "agent"]
+    },
+    {
+      "name": "conflict-banner",
+      "type": "registry:component",
+      "title": "Conflict banner",
+      "description": "Shown when a save was refused because the file changed since it was read: reload theirs, overwrite with mine, or keep editing.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["alert", "button"],
+      "files": [{ "path": "registry/conflict-banner/conflict-banner.tsx", "type": "registry:component" }],
+      "categories": ["files"]
+    },
+    {
+      "name": "markdown-editor",
+      "type": "registry:component",
+      "title": "Markdown editor",
+      "description": "A Tiptap 3 markdown editor over one file: saves against the revision it read, shows a conflict banner on a stale save, and shows the agent's proposed patches as a diff the person accepts. Tools: markdown_go_to_heading, markdown_get_selection, markdown_read_document, markdown_propose_patch, markdown_apply_patch.",
+      "dependencies": ["@boring/viewers", "@boring/files", "@tiptap/react@^3.31.3", "@tiptap/pm@^3.31.3", "@tiptap/starter-kit@^3.31.3", "@tiptap/markdown@^3.31.3", "@tiptap/extensions@^3.31.3", "@tiptap/extension-list@^3.31.3", "lucide-react"],
+      "registryDependencies": ["badge", "button", "separator", "https://hachej.github.io/boring-ui-v3/r/conflict-banner.json"],
+      "files": [
+        { "path": "registry/markdown-editor/markdown-editor.tsx", "type": "registry:component" },
+        { "path": "registry/markdown-editor/proposal-diff.tsx", "type": "registry:component" }
+      ],
+      "css": {
+        "@layer components": {
+          ".boring-prose": { "line-height": "1.7" },
+          ".boring-prose > * + *": { "margin-top": "0.75em" },
+          ".boring-prose h1": { "font-size": "1.75rem", "font-weight": "650", "line-height": "1.2", "margin-top": "1.2em" },
+          ".boring-prose h2": { "font-size": "1.35rem", "font-weight": "600", "margin-top": "1.1em" },
+          ".boring-prose h3": { "font-size": "1.1rem", "font-weight": "600" },
+          ".boring-prose ul": { "list-style": "disc", "padding-left": "1.5rem" },
+          ".boring-prose ol": { "list-style": "decimal", "padding-left": "1.5rem" },
+          ".boring-prose ul[data-type=taskList]": { "list-style": "none", "padding-left": "0.25rem" },
+          ".boring-prose ul[data-type=taskList] li": { "display": "flex", "gap": "0.5rem" },
+          ".boring-prose blockquote": { "border-left": "3px solid var(--border)", "padding-left": "1rem", "color": "var(--muted-foreground)" },
+          ".boring-prose code": { "background": "var(--muted)", "border-radius": "0.25rem", "padding": "0.1em 0.3em", "font-size": "0.9em" },
+          ".boring-prose pre": { "background": "var(--muted)", "border-radius": "var(--radius)", "padding": "0.75rem 1rem", "overflow-x": "auto" },
+          ".boring-prose a": { "color": "var(--primary)", "text-decoration": "underline" },
+          ".boring-prose p.is-editor-empty:first-child::before": { "content": "attr(data-placeholder)", "color": "var(--muted-foreground)", "float": "left", "height": "0", "pointer-events": "none" },
+          ".boring-prose [data-boring-flash]": { "background": "color-mix(in oklch, var(--primary) 18%, transparent)", "border-radius": "0.25rem", "transition": "background 0.6s" }
+        }
+      },
+      "docs": "Needs @boring/viewers and @boring/files in your package.json. Uses Tiptap's MIT core, StarterKit, Markdown, Placeholder and task lists only (no Pro extensions).",
+      "categories": ["files", "editor", "agent"]
+    },
+    {
+      "name": "image-viewer",
+      "type": "registry:component",
+      "title": "Image viewer",
+      "description": "PNG, JPEG, WebP, GIF and SVG with wheel zoom, drag pan, fit and temporary highlights. Tools: image_zoom, image_pan, image_fit, image_annotate, image_describe (metadata only, never pixels).",
+      "dependencies": ["@boring/viewers", "@boring/files", "lucide-react"],
+      "registryDependencies": ["badge", "button"],
+      "files": [{ "path": "registry/image-viewer/image-viewer.tsx", "type": "registry:component" }],
+      "docs": "The file contract is text: SVG shows from its text, a raster stored as a data:image URL shows as is, other raster files need a source(address, revision) URL your application serves.",
+      "categories": ["files", "media", "agent"]
+    },
+    {
+      "name": "chat-message",
+      "type": "registry:component",
+      "title": "Chat message",
+      "description": "The Message and Text slots of @boring/chat's BoringChat.",
+      "dependencies": ["@boring/chat"],
+      "files": [{ "path": "registry/chat-message/chat-message.tsx", "type": "registry:component" }],
+      "categories": ["chat"]
+    },
+    {
+      "name": "tool-call",
+      "type": "registry:component",
+      "title": "Tool call",
+      "description": "The ToolCall slot: a tool's input and output, with the page command's outcome (applied, proposed, committed, stale, conflict, denied, unavailable).",
+      "dependencies": ["@boring/chat", "lucide-react"],
+      "registryDependencies": ["badge"],
+      "files": [{ "path": "registry/tool-call/tool-call.tsx", "type": "registry:component" }],
+      "categories": ["chat", "agent"]
+    },
+    {
+      "name": "ask-card",
+      "type": "registry:component",
+      "title": "Ask card",
+      "description": "The AskCard slot: a question the agent asked the person.",
+      "dependencies": ["@boring/chat", "lucide-react"],
+      "registryDependencies": ["badge", "card"],
+      "files": [{ "path": "registry/ask-card/ask-card.tsx", "type": "registry:component" }],
+      "categories": ["chat"]
+    },
+    {
+      "name": "approval-card",
+      "type": "registry:component",
+      "title": "Approval card",
+      "description": "The ApprovalCard slot: an approval requested on one exact file revision.",
+      "dependencies": ["@boring/chat", "lucide-react"],
+      "registryDependencies": ["badge", "card"],
+      "files": [{ "path": "registry/approval-card/approval-card.tsx", "type": "registry:component" }],
+      "categories": ["chat"]
+    },
+    {
+      "name": "chat",
+      "type": "registry:component",
+      "title": "Chat",
+      "description": "@boring/chat's BoringChat, headless, dressed with shadcn primitives through its slots: messages, tool calls with outcomes, ask and approval cards, run status and a composer.",
+      "dependencies": ["@boring/chat", "lucide-react"],
+      "registryDependencies": ["button", "textarea", "https://hachej.github.io/boring-ui-v3/r/chat-message.json", "https://hachej.github.io/boring-ui-v3/r/tool-call.json", "https://hachej.github.io/boring-ui-v3/r/ask-card.json", "https://hachej.github.io/boring-ui-v3/r/approval-card.json"],
+      "files": [{ "path": "registry/chat/chat.tsx", "type": "registry:component" }],
+      "docs": "Needs @boring/chat in your package.json and an agent endpoint mounted with @boring/agent's mountWire.",
+      "categories": ["chat", "agent"]
+    }
+  ]
+}
