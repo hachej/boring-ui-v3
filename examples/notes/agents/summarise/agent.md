@@ -8,7 +8,7 @@ max_tokens: 2000
 output: tool
 helper_tools: [lookup]
 inputs:
-  note: The text of the note to summarise
+  note: { type: string, description: The text of the note to summarise, required: true }
 outputs:
   title: A title of at most 80 characters
   summary: One or two sentences

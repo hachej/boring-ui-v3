@@ -10,7 +10,8 @@
 import type { Effect, FileAddress, FileProvider } from "@boring/files";
 
 export { loadApp, loadAgentDefinition, loadJobDefinition, loadConversationDefinition } from "./definitions/load.ts";
-export { DefinitionError, parseFrontMatter } from "./definitions/front-matter.ts";
+export { DefinitionError, parseFrontMatter, inputSchema, type InputSchema, type InputProperty } from "./definitions/front-matter.ts";
+import type { InputSchema } from "./definitions/front-matter.ts";
 export { createRuntime, type Runtime, type StartRunRequest, type StartJobRequest, type ConversationMessageRequest } from "./runtime/runtime.ts";
 export { openStore, type Store, type RunRecord, type JobRecord, type ThreadRecord, type UsageRow, type ReceiptRow } from "./runtime/store.ts";
 export { mountWire, type WireOptions } from "./wire/mount.ts";
@@ -105,7 +106,8 @@ export type AgentDefinition = Readonly<{
   system: string;
   /** Names of helper tools the agent may call; the application registers their handlers. */
   helperTools: readonly string[];
-  inputs: Readonly<Record<string, string>>;
+  /** JSON schema of the inputs, derived from the `inputs:` block; a client can build a form from it. */
+  inputs: InputSchema;
   outputs: Readonly<Record<string, string>>;
   dir: string;
   buildMessage: (input: Record<string, unknown>) => string;
@@ -123,7 +125,7 @@ export type JobDefinition = Readonly<{
   description: string;
   /** The agents this job may start; the composition is frozen when the job starts. */
   children: readonly string[];
-  inputs: Readonly<Record<string, string>>;
+  inputs: InputSchema;
   outputs: Readonly<Record<string, string>>;
   dir: string;
   plan: (input: Record<string, unknown>) => readonly { agent: string; input: Record<string, unknown> }[] | Promise<readonly { agent: string; input: Record<string, unknown> }[]>;
@@ -139,7 +141,7 @@ export type ConversationDefinition = Readonly<{
   agent: string;
   /** How many earlier turns the agent sees. */
   history: number;
-  inputs: Readonly<Record<string, string>>;
+  inputs: InputSchema;
   dir: string;
   context?: (input: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }>;

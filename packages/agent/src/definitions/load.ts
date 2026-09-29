@@ -2,7 +2,8 @@
  * Loaders for the standard definition files an application ships:
  *
  *   agents/<name>/agent.md        front matter (name, title, model, effort, max_tokens, output,
- *                                 helper_tools, inputs, outputs) + system prompt
+ *                                 helper_tools, inputs, outputs) + system prompt; `inputs:` lines are
+ *                                 `name: description` or `name: { type, description, required, enum }`
  *   agents/<name>/tool.json       the output tool (name, description, input schema) when output: tool
  *   agents/<name>/rules.md        editable defaults handed to buildMessage as `rules`
  *   agents/<name>/index.mjs       buildMessage(input) → string, validate(output) → output, asText(output) → string,
@@ -18,7 +19,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { DefinitionError, field, parseFrontMatter } from "./front-matter.ts";
+import { DefinitionError, field, inputSchema, parseFrontMatter } from "./front-matter.ts";
 import type { AgentDefinition, AppRegistry, ConversationDefinition, JobDefinition, OutputTool } from "../index.ts";
 
 const NAME = /^[a-z][a-z0-9-]*$/;
@@ -64,7 +65,7 @@ export async function loadAgentDefinition(dir: string): Promise<AgentDefinition>
   const maxTokens = field(meta, file, "max_tokens", "number") ?? 8000;
   const helperTools = field(meta, file, "helper_tools", "list") ?? [];
   for (const tool of helperTools) if (!NAME.test(tool)) throw new DefinitionError(file, `"helper_tools" entry "${tool}" must match ${NAME}`);
-  const inputs = field(meta, file, "inputs", "map") ?? {};
+  const inputs = inputSchema(meta, file);
   const outputs = field(meta, file, "outputs", "map") ?? {};
   const description = field(meta, file, "description", "string");
   if (!body) throw new DefinitionError(file, "the system prompt (the body after the front matter) is empty");
@@ -96,7 +97,7 @@ export async function loadJobDefinition(dir: string, agents: ReadonlyMap<string,
   const module = await importModule(dir, file);
   for (const fn of ["plan", "collect"]) if (typeof module[fn] !== "function") throw new DefinitionError(join(dir, "index.mjs"), `must export a function "${fn}"`);
   return {
-    kind: "job", name, title, description: body, children, inputs: field(meta, file, "inputs", "map") ?? {}, outputs: field(meta, file, "outputs", "map") ?? {}, dir,
+    kind: "job", name, title, description: body, children, inputs: inputSchema(meta, file), outputs: field(meta, file, "outputs", "map") ?? {}, dir,
     plan: module.plan as JobDefinition["plan"], collect: module.collect as JobDefinition["collect"],
   };
 }
@@ -113,7 +114,7 @@ export async function loadConversationDefinition(dir: string, agents: ReadonlyMa
   const history = field(meta, file, "history", "number") ?? 12;
   const module = existsSync(join(dir, "index.mjs")) ? await importModule(dir, file) : {};
   if (module.context !== undefined && typeof module.context !== "function") throw new DefinitionError(join(dir, "index.mjs"), `"context" must be a function when exported`);
-  return { kind: "conversation", name, title, description: body, agent, history, inputs: field(meta, file, "inputs", "map") ?? {}, dir, context: module.context as ConversationDefinition["context"] };
+  return { kind: "conversation", name, title, description: body, agent, history, inputs: inputSchema(meta, file), dir, context: module.context as ConversationDefinition["context"] };
 }
 
 function folders(dir: string): string[] {

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, cpSync } from "node:fs";
 import path from "node:path";
-import { DefinitionError, loadAgentDefinition, loadApp, parseFrontMatter } from "@boring/agent";
+import { DefinitionError, inputSchema, loadAgentDefinition, loadApp, parseFrontMatter } from "@boring/agent";
 import { notesDir, tempDir } from "./helpers.ts";
 
 const write = (dir: string, file: string, text: string) => { mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); writeFileSync(path.join(dir, file), text); };
@@ -17,6 +17,22 @@ test("front matter: scalars, inline lists, nested maps, and clear errors", () =>
   assert.throws(() => parseFrontMatter("---\nname a\n---\n", "f.md"), /line 1: expected "key: value"/);
   assert.throws(() => parseFrontMatter("---\nname: a\nname: b\n---\n", "f.md"), /"name" is defined twice/);
   assert.throws(() => parseFrontMatter("---\nlist: [a\n---\n", "f.md"), /inline list must close/);
+  assert.throws(() => parseFrontMatter("---\n  a: 1\n---\n", "f.md"), /line 1: unexpected indentation/);
+});
+
+test("inputs: a description or a typed map becomes a JSON-schema object", () => {
+  const { meta } = parseFrontMatter('---\ninputs:\n  note: The note\n  count: { type: integer, description: "How many", required: true }\n  kind: { type: string, enum: [short, long], default: short }\n  notes:\n    type: array\n    items: string\n    required: true\n---\n', "f.md");
+  assert.deepEqual(inputSchema(meta, "f.md"), { type: "object", properties: {
+    note: { type: "string", description: "The note" },
+    count: { type: "integer", description: "How many" },
+    kind: { type: "string", enum: ["short", "long"], default: "short" },
+    notes: { type: "array", items: { type: "string" } },
+  }, required: ["count", "notes"] });
+  assert.deepEqual(inputSchema({}, "f.md"), { type: "object", properties: {}, required: [] });
+  assert.throws(() => inputSchema({ inputs: { a: { type: "date" } } }, "f.md"), /"inputs\.a"\.type must be one of string, number/);
+  assert.throws(() => inputSchema({ inputs: { a: { typo: "x" } } }, "f.md"), /"inputs\.a": unknown field "typo"/);
+  assert.throws(() => inputSchema({ inputs: { a: { type: "string", items: "string" } } }, "f.md"), /items applies to type: array only/);
+  assert.throws(() => inputSchema({ inputs: "text" }, "f.md"), /"inputs" must be a block/);
 });
 
 test("loadApp returns the registry of the notes example", async () => {

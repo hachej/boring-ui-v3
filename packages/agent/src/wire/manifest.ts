@@ -1,9 +1,12 @@
 /**
  * The manifest at /.well-known/boring.json: what an application's agents, jobs and conversations
  * are, so that another system can discover and invoke them over the wire. It carries definitions
- * and schemas only; never a credential, a prompt or a record (AGENT-7).
+ * and schemas only; never a credential, a prompt or a record (AGENT-7). `inputs` is always a JSON-schema
+ * object so a client can build a form; `outputs` is the output tool's schema for tool agents and a
+ * description map for markdown agents.
  */
 import type { AppRegistry } from "../index.ts";
+import type { InputSchema } from "../definitions/front-matter.ts";
 
 export type Manifest = Readonly<{
   protocol: 1;
@@ -12,11 +15,11 @@ export type Manifest = Readonly<{
   description?: string;
   agents: readonly Readonly<{
     name: string; title: string; description?: string; model: string; effort?: string; output: "tool" | "markdown";
-    inputs: Readonly<Record<string, string>>; outputs: Readonly<Record<string, string>> | Readonly<{ schema: Record<string, unknown> }>; tools: readonly string[];
+    inputs: InputSchema; outputs: Readonly<Record<string, string>> | Readonly<{ schema: Record<string, unknown> }>; tools: readonly string[];
     invoke: string;
   }>[];
-  jobs: readonly Readonly<{ name: string; title: string; description: string; children: readonly string[]; inputs: Readonly<Record<string, string>>; outputs: Readonly<Record<string, string>>; invoke: string }>[];
-  conversations: readonly Readonly<{ name: string; title: string; description: string; agent: string; inputs: Readonly<Record<string, string>>; invoke: string }>[];
+  jobs: readonly Readonly<{ name: string; title: string; description: string; children: readonly string[]; inputs: InputSchema; outputs: Readonly<Record<string, string>>; invoke: string }>[];
+  conversations: readonly Readonly<{ name: string; title: string; description: string; agent: string; inputs: InputSchema; invoke: string }>[];
   endpoints: Readonly<Record<string, string>>;
 }>;
 

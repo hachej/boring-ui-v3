@@ -14,6 +14,10 @@ test("the wire drives the notes app: manifest, run, events, dedupe, job, convers
   assert.deepEqual(manifest.jobs[0].children, ["summarise"]);
   assert.equal(manifest.conversations[0].agent, "answer");
   assert.equal(manifest.agents[1].outputs.schema.type, "object");
+  assert.deepEqual(manifest.agents[1].inputs, { type: "object", properties: { note: { type: "string", description: "The text of the note to summarise" } }, required: ["note"] });
+  assert.deepEqual(manifest.jobs[0].inputs, { type: "object", properties: { notes: { type: "array", items: { type: "string" }, description: "The notes to digest, one summary each" } }, required: ["notes"] });
+  assert.deepEqual(manifest.conversations[0].inputs.properties.notes.type, "array");
+  assert.deepEqual(manifest.agents[0].outputs, { markdown: "the agent's answer as markdown" });
 
   const started = await call("POST", "/agents/summarise/runs", { inputs: { note: "Buy milk tomorrow." }, idempotencyKey: "k1" });
   assert.equal(started.status, 202);

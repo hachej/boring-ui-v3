@@ -3,7 +3,11 @@ name: digest
 title: Digest of several notes
 children: [summarise]
 inputs:
-  notes: The notes to digest, one summary each
+  notes:
+    type: array
+    items: string
+    description: The notes to digest, one summary each
+    required: true
 outputs:
   summaries: One summary per note, in order
 ---

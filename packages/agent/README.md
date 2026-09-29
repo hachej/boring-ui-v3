@@ -2,7 +2,7 @@
 
 A standard, app-embeddable agent runtime. An application owns and runs its agents in its own process: it defines them as files, runs them on Flue with receipts, usage metering, validated outputs and repair, exposes them over one HTTP wire, and publishes a manifest another system can read to discover them. The application keeps its database, its auth and its deploy; the [Host contract](src/index.ts) is the only way authority enters.
 
-Laws: [INVARIANTS.md](INVARIANTS.md). Evidence: [VERIFY.json](VERIFY.json). Contract: [src/index.ts](src/index.ts). Wire types for the chat: [src/wire.ts](src/wire.ts). Sample application: [examples/notes](../../examples/notes).
+Laws: [INVARIANTS.md](INVARIANTS.md). Evidence: [VERIFY.json](VERIFY.json). Contract: [src/index.ts](src/index.ts). **The wire contract clients code against: [CONTRACT.md](CONTRACT.md)** (endpoints, bodies, views, events, cursors, status codes, manifest schema). Wire types for the chat: [src/wire.ts](src/wire.ts). Sample application: [examples/notes](../../examples/notes).
 
 ## Define
 
@@ -18,7 +18,7 @@ conversations/<name>/CONVERSATION.md   front matter (agent, history) + descripti
 conversations/<name>/index.mjs      optional context(input) → input for the agent
 ```
 
-`agent.md` front matter: `name`, `title`, `model` (provider/model, a default the app may override), `effort`, `max_tokens`, `output: tool | markdown`, `helper_tools: [names]`, `inputs:` and `outputs:` blocks of `name: description` for the manifest. A validator throws `OutputError`; its message goes back to the model for a repair (twice by default).
+`agent.md` front matter: `name`, `title`, `model` (provider/model, a default the app may override), `effort`, `max_tokens`, `output: tool | markdown`, `helper_tools: [names]`, an `inputs:` block (`name: description`, or `name: { type, description, required, enum, items, default }`) that becomes the manifest's JSON-schema `inputs`, and an `outputs:` block of `name: description` for markdown agents. A validator throws `OutputError`; its message goes back to the model for a repair (twice by default).
 
 ## Run and expose
 
@@ -32,7 +32,7 @@ const wire = mountWire({ host, runtime, basePath: "/agent" });   // wire.fetch(r
 
 | Endpoint | Does |
 |---|---|
-| `GET /.well-known/boring.json` | The manifest: app, agents (inputs, output schema, model, tools), jobs (children), conversations, endpoints |
+| `GET /.well-known/boring.json` | The manifest: app, agents (inputs as JSON schema, output schema, model, tools), jobs (children), conversations, endpoints |
 | `POST /agents/:agent/runs` | Request work: `{ message?, inputs?, thread?, idempotencyKey? }` → run (202); same key = same run |
 | `GET /runs/:id` | Status, output, error, attempts |
 | `GET /runs/:id/events?cursor=` | NDJSON: replay after the cursor, then live until the run ends |
@@ -42,7 +42,7 @@ const wire = mountWire({ host, runtime, basePath: "/agent" });   // wire.fetch(r
 | `POST /conversations/:conversation/messages` | `{ text, thread?, inputs?, idempotencyKey? }` → `{ thread, run }` (202) |
 | `GET /threads/:id`, `GET /threads/:id/events?cursor=&live=0` | The thread and its replayable events |
 
-Identity comes from `Host.resolveActor(request)` on every request. Model access (`fake` script, `openrouter` key, `openai-codex` credentials file) is given at mount time and never stored.
+Identity comes from `Host.resolveActor(request)` on every request. Bodies, views, events and status codes are specified once in [CONTRACT.md](CONTRACT.md). Model access (`fake` script, `openrouter` key, `openai-codex` credentials file) is given at mount time and never stored.
 
 ## What exists now
 
