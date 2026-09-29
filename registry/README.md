@@ -21,7 +21,7 @@ The repository is private, so the registry is served from it with a token: the b
 
 `GITHUB_TOKEN` is any token that can read `hachej/boring-ui-v3` (a fine-grained personal access token with *Contents: read* on the repository, or `gh auth token`), in your environment or your app's `.env.local`. It is expanded by the shadcn CLI at install time and never written into your app's files.
 
-Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind v4), and `@boring/viewers`, `@boring/files` and `@boring/chat` in its `package.json` (the CLI skips dependencies already declared; the `@boring/*` packages are not on the public npm registry yet).
+Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind v4), and `@boring/viewers`, `@boring/files` and `@boring/chat` resolvable from its `package.json`. They are not published to npm yet: depend on a checkout (`"@boring/viewers": "file:../boring-ui-v3/packages/viewers"`, same for files and chat) or a workspace. The CLI skips dependencies already declared, and an unresolvable one makes its `npm install` fail.
 
 | Item | Install |
 |---|---|
