@@ -6,7 +6,7 @@ Sources: `registry/<item>/`, declared in [`registry.json`](../registry.json). Bu
 
 ## Install
 
-Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind v4), and `@boring/viewers`, `@boring/files` and `@boring/chat` in its `package.json` (the CLI skips dependencies already declared; the `@boring/*` packages are not on the public npm registry yet).
+Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind v4), and `@boring/viewers`, `@boring/files` and `@boring/chat` resolvable from its `package.json`. They are not published to npm yet: depend on a checkout (`"@boring/viewers": "file:../boring-ui-v3/packages/viewers"`, same for files and chat) or a workspace. The CLI skips dependencies already declared, and an unresolvable one makes its `npm install` fail.
 
 | Item | Install |
 |---|---|
@@ -15,10 +15,11 @@ Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind 
 | conflict-banner | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/conflict-banner.json` |
 | image-viewer | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/image-viewer.json` |
 | canvas | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/canvas.json` (tldraw; pass `licenseKey` from your config in production) |
+| workspace | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/workspace.json` (dockview; panels are the other items, rendered by your app) |
 | chat | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/chat.json` (brings chat-message, tool-call, ask-card, approval-card) |
 | chat-message, tool-call, ask-card, approval-card | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` |
 
-Fallback without Pages, from the repository itself: `npx shadcn add https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/<item>.json`. The items it depends on are still named by their Pages URL.
+Fallback without Pages, from the repository itself (once it is public): `npx shadcn add https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/<item>.json`. The items it depends on are still named by their Pages URL.
 
 To name the registry once, add it to `components.json` and install by name:
 

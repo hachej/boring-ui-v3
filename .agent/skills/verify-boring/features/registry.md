@@ -1,12 +1,12 @@
 # Registry
 
-The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) and the application built from it, `examples/registry-host`: its components under `src/components/` were installed with `npx shadcn add` from a local build, and CI reinstalls them and diffs. Items: file-tree, conflict-banner, markdown-editor, image-viewer, canvas, chat, chat-message, tool-call, ask-card, approval-card. Laws: VIEWERS-1..7, CHAT-5.
+The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) and the application built from it, `examples/registry-host`: its components under `src/components/` were installed with `npx shadcn add` from a local build, and CI reinstalls them and diffs. Items: file-tree, conflict-banner, markdown-editor, image-viewer, canvas, workspace, chat, chat-message, tool-call, ask-card, approval-card. Laws: VIEWERS-1..7, CHAT-5.
 
 ## Sub-features
 
 - build: `registry build` writes `public/r/<item>.json` with the Pages URLs in cross-item dependencies; `registry check` fails when the committed build is stale.
 - install: `registry install [items] [--into dir]` serves a local build, rewrites the cross-item URLs to it, runs `shadcn add -y -o` per item in the app; dependencies already in the app's `package.json` are skipped by the CLI.
-- the host: tree (`/workspace` writable, `/code` read-only), the open file's viewer, the chat; theme `moss`, light and dark (`?theme=dark`), the open file in `?open=`, the thread in `#thread=`.
+- the host: tree (`/workspace` writable, `/code` read-only), the dockview workspace holding the open files' viewers as panels, the chat; theme `moss`, light and dark (`?theme=dark`), the open file in `?open=`, the thread in `#thread=`.
 - the chat items: messages, tool calls with their outcome badge (`data-outcome`), ask and approval cards (render only until decisions exist), run status with stop, composer (Enter sends).
 
 ## How to get to it (user POV)

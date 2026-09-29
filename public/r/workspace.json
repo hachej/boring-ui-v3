@@ -1,0 +1,52 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "workspace",
+  "title": "Workspace",
+  "description": "A dockview workspace whose panels are the other items. Open panels, the active one and the layout are persisted per person as a file. Tools: workspace_open_panel(target, kind?), workspace_close_panel, workspace_focus_panel, workspace_list_panels.",
+  "dependencies": [
+    "@boring/viewers",
+    "dockview-react@^8.3.1",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "https://hachej.github.io/boring-ui-v3/r/conflict-banner.json"
+  ],
+  "files": [
+    {
+      "path": "registry/workspace/workspace.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: workspace. A dockview workspace whose panels are the other items (markdown-editor,\n// image-viewer, canvas, ...). Which panels are open, the active one and the layout belong to @boring/viewers'\n// useWorkspaceLayout, persisted per person as a file; its tools (workspace_open_panel, workspace_close_panel,\n// workspace_focus_panel, workspace_list_panels) are the agent's. Dockview renders and reports; it holds no truth.\nimport { useEffect, useRef, useSyncExternalStore, type ReactNode } from \"react\"\nimport { DockviewReact, themeLight, type DockviewApi, type IDockviewPanelProps } from \"dockview-react\"\nimport \"dockview-react/dist/styles/dockview.css\"\nimport { LayoutPanelLeft } from \"lucide-react\"\nimport type { Panel, useWorkspaceLayout } from \"@boring/viewers\"\nimport { ConflictBanner } from \"@/components/conflict-banner\"\nimport { cn } from \"@/lib/utils\"\n\nexport type WorkspaceProps = {\n  /** The hook's result: the app calls useWorkspaceLayout so its own controls (the tree) open panels through the same tools. */\n  workspace: ReturnType<typeof useWorkspaceLayout>\n  /** Render one panel: the app maps a kind to a registry item. */\n  renderPanel: (panel: Panel) => ReactNode\n  empty?: ReactNode\n  className?: string\n}\n\n/** Dockview renders panels in portals that do not re-render with the page: they read what to show from this store. */\nfunction panelSource() {\n  let value: { panels: readonly Panel[]; render: (panel: Panel) => ReactNode } = { panels: [], render: () => null }\n  const listeners = new Set<() => void>()\n  return {\n    get: () => value,\n    set(next: typeof value) { value = next; for (const l of [...listeners]) l() },\n    subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l) } },\n  }\n}\n\nexport function Workspace({ workspace, renderPanel, empty, className }: WorkspaceProps) {\n  const { state, actions } = workspace\n  const api = useRef<DockviewApi | null>(null)\n  const latest = useRef({ state })\n  latest.current = { state }\n  const restored = useRef(false)\n  const source = useRef(panelSource()).current\n  useEffect(() => { source.set({ panels: state.panels, render: renderPanel }) }, [source, state.panels, renderPanel])\n\n  // The hook's panels → dockview. Adding and removing only; dockview keeps positions, which it reports back as the grid.\n  useEffect(() => {\n    const dv = api.current\n    if (!dv || state.status !== \"ready\") return\n    if (!restored.current) {\n      restored.current = true\n      if (state.grid) try { dv.fromJSON(state.grid as Parameters<DockviewApi[\"fromJSON\"]>[0]) } catch { dv.clear() }\n    }\n    for (const panel of state.panels) if (!dv.getPanel(panel.id)) dv.addPanel({ id: panel.id, component: \"viewer\", title: panel.title, params: { id: panel.id } })\n    for (const panel of [...dv.panels]) if (!state.panels.some(p => p.id === panel.id)) panel.api.close()\n    if (state.active && dv.activePanel?.id !== state.active) dv.getPanel(state.active)?.api.setActive()\n  }, [state.status, state.panels, state.active, state.grid])\n\n  const components = useRef({\n    viewer: function Viewer({ params }: IDockviewPanelProps<{ id: string }>) {\n      const { panels, render } = useSyncExternalStore(source.subscribe, source.get, source.get)\n      const panel = panels.find(p => p.id === params.id)\n      return <div data-boring=\"panel\" data-panel={params.id} className=\"h-full min-h-0 bg-background\">{panel ? render(panel) : null}</div>\n    },\n  }).current\n\n  return (\n    <div data-boring=\"workspace\" className={cn(\"boring-dockview relative flex h-full min-h-0 flex-col bg-background text-foreground\", className)}>\n      {state.conflict && <ConflictBanner className=\"rounded-none border-x-0 border-t-0\" current={state.conflict.current} onReload={actions.reload} onOverwrite={actions.overwrite} onDismiss={actions.dismissConflict} />}\n      <div className=\"relative min-h-0 flex-1\">\n        <DockviewReact\n          theme={themeLight}\n          components={components}\n          onReady={event => {\n            const dv = event.api\n            api.current = dv\n            // The person closed a tab (a move also removes then re-adds: only a panel that stays gone is closed).\n            dv.onDidRemovePanel(panel => queueMicrotask(() => { if (!dv.getPanel(panel.id) && latest.current.state.panels.some(p => p.id === panel.id)) void actions.close(panel.id) }))\n            dv.onDidActivePanelChange(event => { const id = event.panel?.id; if (id && id !== latest.current.state.active && latest.current.state.panels.some(p => p.id === id)) void actions.focus(id) })\n            dv.onDidLayoutChange(() => { if (restored.current) actions.layout(dv.toJSON()) })\n          }}\n        />\n        {state.status === \"ready\" && state.panels.length === 0 && (\n          <div className=\"pointer-events-none absolute inset-0 grid place-items-center text-sm text-muted-foreground\">\n            {empty ?? <span className=\"flex items-center gap-2\"><LayoutPanelLeft className=\"size-4\" />Open a file from the tree, or ask the agent to.</span>}\n          </div>\n        )}\n      </div>\n    </div>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "css": {
+    "@layer components": {
+      ".boring-dockview .dockview-theme-light": {
+        "--dv-group-view-background-color": "var(--background)",
+        "--dv-tabs-and-actions-container-background-color": "var(--muted)",
+        "--dv-activegroup-visiblepanel-tab-background-color": "var(--background)",
+        "--dv-activegroup-hiddenpanel-tab-background-color": "var(--muted)",
+        "--dv-inactivegroup-visiblepanel-tab-background-color": "var(--background)",
+        "--dv-inactivegroup-hiddenpanel-tab-background-color": "var(--muted)",
+        "--dv-activegroup-visiblepanel-tab-color": "var(--foreground)",
+        "--dv-activegroup-hiddenpanel-tab-color": "var(--muted-foreground)",
+        "--dv-inactivegroup-visiblepanel-tab-color": "var(--muted-foreground)",
+        "--dv-inactivegroup-hiddenpanel-tab-color": "var(--muted-foreground)",
+        "--dv-tab-divider-color": "var(--border)",
+        "--dv-separator-border": "var(--border)",
+        "--dv-paneview-header-border-color": "var(--border)",
+        "--dv-drag-over-background-color": "color-mix(in oklch, var(--primary) 20%, transparent)",
+        "--dv-drag-over-border-color": "var(--primary)",
+        "--dv-active-sash-color": "var(--primary)",
+        "--dv-icon-hover-background-color": "var(--accent)",
+        "--dv-tabs-and-actions-container-font-size": "12px",
+        "--dv-tabs-and-actions-container-height": "34px"
+      }
+    }
+  },
+  "docs": "Needs @boring/viewers in your package.json. Call useWorkspaceLayout({ files, address: '/workspace/.boring/layout.json', kinds: [...] }) in your app, pass it as `workspace`, and render panels by kind with the other items.",
+  "categories": [
+    "layout",
+    "agent"
+  ],
+  "type": "registry:component"
+}

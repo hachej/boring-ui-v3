@@ -35,14 +35,14 @@ Walk this map top to bottom for a broad regression, then finish with the journey
 - [receipts-and-usage](receipts-and-usage.md): what a run touched and what it cost, attributed.
 - [chat-page](chat-page.md): the page in a browser: send, reply, stop, reload.
 - [registry](registry.md): the shadcn registry, its install path, and the host built from it (`env up --example registry-host`).
-- [file-tree](file-tree.md), [markdown-editor](markdown-editor.md), [image-viewer](image-viewer.md), [canvas](canvas.md): the viewers, for the person and through their tools for the agent.
+- [file-tree](file-tree.md), [markdown-editor](markdown-editor.md), [image-viewer](image-viewer.md), [canvas](canvas.md), [workspace](workspace.md): the viewers, for the person and through their tools for the agent.
 
 ## Multi-surface journeys
 
 - **Page then wire.** Send from the page, then `chat`: the events the page rendered are the ones the wire replays; `trace` the run the page started.
 - **Restart persistence.** After any journey, `env up --restart --keep-data`, then `runs` and `chat`: every run keeps its status and the thread replays unchanged (AGENT-1, CHAT-1).
 - **Two actors.** Anything created as `dev` is 404 for `curl -H "x-dev-actor: other"` on the same id (CHAT-4, AGENT-8).
-- **Agent in the editor.** On the registry host: open a markdown file, `thread --from-page`, "name a risk", accept in the page, then "write a note": the tree shows the new file and `trace` shows both receipts (the person's save through the file routes, the agent's `write_file`).
+- **Agent in the workspace.** On the registry host: `thread --from-page`, "show /workspace/notes/plan.md" (a dockview panel), "name a risk", accept in the page (the save state shows the new revision), then "write a note": the tree shows the new file and `trace` of that run shows the `write_file` receipt.
 - **Real model pass.** Repeat the conversation and the digest with `--model openrouter/...`; judge the answers against the notes and read `trace` for attempts and usage.
 
 ## Entry contract

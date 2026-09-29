@@ -5,7 +5,7 @@
  * registered and the viewer works for the person alone.
  */
 import { useEffect, useMemo, useRef } from "react";
-import type { ChatClient, PageCommand, UiRequestView, UiResult, UiTarget } from "@boring/chat";
+import type { ChatClient, Event, PageCommand, UiRequestView, UiResult, UiTarget } from "@boring/chat";
 import { createUiBridge, pageId } from "@boring/chat/bridge";
 import { call, type ViewerTool } from "./tool.ts";
 
@@ -16,6 +16,33 @@ export type AgentBinding = Readonly<{
   /** Every request this viewer answered, for the page's own log. */
   onAnswer?: (request: UiRequestView, result: UiResult) => void;
 }>;
+
+/**
+ * One live stream per client and thread, shared by every viewer on the page. A browser holds about six HTTP/1.1
+ * connections per host; a stream per viewer would starve the page's own requests (a message, a save).
+ */
+const hubs = new WeakMap<ChatClient, Map<string, { listeners: Set<(event: Event) => void>; controller: AbortController }>>();
+export function followThread(client: ChatClient, thread: string, listener: (event: Event) => void): () => void {
+  const byThread = hubs.get(client) ?? new Map();
+  hubs.set(client, byThread);
+  let hub = byThread.get(thread);
+  if (!hub) {
+    const created = { listeners: new Set<(event: Event) => void>(), controller: new AbortController() };
+    hub = created;
+    byThread.set(thread, created);
+    void (async () => {
+      try { for await (const event of client.follow({ thread }, { signal: created.controller.signal })) for (const l of [...created.listeners]) l(event); }
+      catch { /* aborted or disconnected: the runtime expires what nobody answered */ }
+      if (byThread.get(thread) === created) byThread.delete(thread);
+    })();
+  }
+  const current = hub;
+  current.listeners.add(listener);
+  return () => {
+    current.listeners.delete(listener);
+    if (current.listeners.size === 0) { current.controller.abort(); if (byThread.get(thread) === current) byThread.delete(thread); }
+  };
+}
 
 /** The page commands of a viewer: `<namespace>_<tool>`, each running the same `call` as the person's control. */
 export function pageCommands(tools: readonly ViewerTool[], namespace: string): PageCommand[] {
@@ -48,8 +75,10 @@ export function useViewerAgent(tools: readonly ViewerTool[], options: { agent?: 
     const instance = createUiBridge({ client, thread, page: `${page}-${namespace}`.slice(0, 64), commands, target: () => latest.current.target, onAnswer: (r, res) => latest.current.onAnswer?.(r, res) });
     bridge.current = instance;
     registeredTarget.current = JSON.stringify(latest.current.target ?? null);
-    void instance.start().catch(() => {});
-    return () => { bridge.current = null; void instance.stop(); };
+    // Register, then answer from the page's shared stream rather than a stream of our own.
+    void instance.retarget().catch(() => {});
+    const unfollow = followThread(client, thread, event => { void instance.handle(event); });
+    return () => { unfollow(); bridge.current = null; void instance.stop(); };
   }, [client, thread, page, namespace, key]);
 
   useEffect(() => {
