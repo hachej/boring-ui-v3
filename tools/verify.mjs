@@ -15,6 +15,7 @@ export function validateRegistry(registry, location = "registry") {
         if (!verifier.reason) throw new Error(`${id}: deferral requires a reason`);
       } else if (verifier.kind === "command") {
         if (!Array.isArray(verifier.command) || !verifier.command.length || verifier.command.some(value => typeof value !== "string" || !value)) throw new Error(`${id}: command must be a nonempty argv array`);
+        if (verifier.timeout !== undefined && !(Number(verifier.timeout) > 0)) throw new Error(`${id}: timeout must be seconds`);
       } else if (verifier.kind === "model") {
         if (!Object.hasOwn(toolchain.models, verifier.model)) throw new Error(`${id}: unknown model`);
       } else throw new Error(`${id}: unknown verifier kind ${verifier.kind}`);
@@ -67,7 +68,7 @@ export function verify(selection = "all") {
             if (verifier.kind === "model") result = runModel(verifier.model);
             else {
               const [bin, ...args] = verifier.command;
-              const execution = spawnSync(bin === "node" ? process.execPath : bin, args, { cwd: root, encoding: "utf8", timeout: 120000, shell: bin === "npm" });
+              const execution = spawnSync(bin === "node" ? process.execPath : bin, args, { cwd: root, encoding: "utf8", timeout: Number(verifier.timeout ?? 300) * 1000, shell: bin === "npm" });
               result = { status: execution.status, output: (execution.stdout ?? "") + (execution.stderr ?? "") + (execution.error?.message ?? "") };
             }
           } catch (error) { result = { status: 1, output: error.message }; }

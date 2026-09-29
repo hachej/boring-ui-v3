@@ -1,44 +1,57 @@
 #!/usr/bin/env node
-// `boring`: the one command an agent uses to verify its change. Structure and evidence (check, verify, model), a
-// remote control for an isolated running hub (env, send, wait-settle, page controls, log, trace), and a CI smoke
-// run built from the same controls. `boring --help` is the canonical command surface.
+// `boring`: the one command an agent uses to verify a change. Structure and evidence (check, lint, typecheck, test,
+// model, verify), a remote control for an isolated running copy of the example app (env, doctor, send, wait-settle,
+// runs, run, trace, tool, job, log, page controls), and a CI smoke built from the same controls.
+// `boring --help` is the canonical command surface; every command prints JSON with --json.
+// node:sqlite is experimental in Node 22; its warning is noise on every command.
+const emitWarning = process.emitWarning;
+process.emitWarning = (warning, ...args) => { if (/SQLite/.test(String(warning))) return; emitWarning.call(process, warning, ...args); };
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { checkArchitecture } from "../tools/check.mjs";
-import { root, runModel } from "../tools/formal.mjs";
+import { root, runModel, toolchain } from "../tools/formal.mjs";
 import { loadRegistries, verify } from "../tools/verify.mjs";
 
+const require = createRequire(import.meta.url);
 const HELP = `boring <command> [args] [--json]
 
 Structure and evidence
-  check                              architecture and evidence-registry structure
-  verify [all|owner]                 run the evidence registered for each invariant
-  model <name>                       one TLA+ model: files-commit | agent-commit
+  check                              package direction, laws and registries present
+  lint                               oxlint (correctness and the import direction) then check
+  typecheck                          the three public contracts and the example together (tsc)
+  test [files...]                    the node tests (test/agent, test/chat, test/architecture by default)
+  model <name>                       one bounded TLA+ model: ${Object.keys(toolchain.models).join(" | ")}
+  verify [all|boring|files|agent|chat]   every registered evidence; deferrals listed, never counted as passing
+  laws                               every law id with its owner and evidence (docs/LAWS.md)
   features                           the feature map index (what to drive, how a person reaches it)
-  packages                           the packages and their allowed dependencies
 
-Environment (one isolated dev host per checkout: derived ports, own data, own headless browser)
-  doctor                             toolchain, credentials, and whether the running instance is fresh and ours
-  env up [--seed s] [--model scripted|codex|<spec>] [--think-ms n] [--no-browser] [--chat-bundle dir] [--restart] [--keep-data]
+Environment (one isolated copy of examples/notes per checkout: derived ports, own data dir, own headless browser)
+  doctor                             toolchain, and whether the running instance is ours, answering and not STALE
+  env up [--seed name] [--model fake|openrouter|openrouter/<provider>/<model>] [--keep-data] [--restart] [--no-browser]
   env info | env seeds | env down [--clean]
-  run [--model m] [--port p] [--app dir]      a hub in the foreground (for people, not agents)
 
-Act and inspect (on the environment)
-  send "<text>" [--wait]             a chat message on the Flue wire; --wait = send then wait-settle
-  wait-settle [--timeout s]          until every chat turn settled, no request runs and the app db stopped moving
-  chat                               the conversation as the person sees it
-  tool <name> ['<json>']             call an app tool as the person
-  select <id>                        open a record in the app (what the assistant sees as open)
-  state                              running requests, db revision, open record, approval, model
-  log [--since n] [--job id]         the effect log: Job transitions and every write with who made it
-  trace <job>                        a request's Jobs and each agent's Flue conversation (prompt, tool calls, reply)
+Act and inspect (on the environment; the wire is the app's /agent mount, identity is the app's dev auth)
+  manifest                           GET /.well-known/boring.json
+  send "<text>" [--wait] [--new]     a message in the conversation; the thread continues until --new
+  wait-settle [--timeout s]          until no run or job is open and the records stopped moving
+  chat                               the current thread as the person sees it (replayed from the wire)
+  tool <agent> '<json>' [--key k] [--wait]     request one agent's run with these inputs (POST /agents/:agent/runs)
+  job <name> '<json>' [--key k] [--wait]       start a job (POST /jobs/:job/start)
+  cancel <run>                       POST /runs/:id/cancel
+  runs [--all]                       the recorded runs, newest first
+  run <id>                           a run as the wire shows it, with its events
+  trace <run>                        a run's story: input, events, receipts, usage
+  state                              runs by status, open runs, threads, last cursor, model
+  log [--since cursor] [--run id]    everything recorded: run transitions, messages, receipts, usage
 
-The live page (app pane selectors take the prefix app:)
+The live page (the built chat page in the environment's browser)
   screenshot [file] | snapshot [selector] | click <selector> | type <selector> <text>
-  press <keys> [--in selector] | eval <js> (read state after the user path, never to act) | reload
+  press <keys> [--in selector] | wait-for <selector> | eval <js> (read state, never to act) | reload | goto <path>
 
-CI smoke (canned, deterministic; not a substitute for driving the feature you changed)
-  smoke [driver...] [--url u] [--browser] [--model m]     alias: e2e`;
+CI smoke (deterministic, fake model, throwaway instance; not a substitute for driving the feature you changed)
+  smoke [--no-browser] [--evidence dir]`;
 
 function flags(argv) {
   const out = { _: [] };
@@ -54,12 +67,15 @@ function flags(argv) {
 const [command = "help", ...rest] = process.argv.slice(2);
 const opts = flags(rest);
 const print = (value, human) => { if (opts.json || human === undefined) console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2)); else console.log(human(value)); };
+const sh = (bin, args, extra = {}) => { const r = spawnSync(bin, args, { cwd: root, stdio: "inherit", ...extra }); return r.status ?? 1; };
+const node = (args) => sh(process.execPath, args);
+const parseJson = text => { if (!text) return {}; try { return JSON.parse(text); } catch { throw new Error(`not JSON: ${text}`); } };
 
-const needsHost = ["env", "run", "smoke", "e2e", "drive", "send", "wait-settle", "chat", "tool", "select", "state", "log", "trace", "screenshot", "snapshot", "click", "type", "press", "eval", "reload"];
+const controlled = ["doctor", "env", "manifest", "send", "wait-settle", "chat", "tool", "job", "cancel", "runs", "run", "trace", "state", "log", "screenshot", "snapshot", "click", "type", "press", "wait-for", "eval", "reload", "goto"];
 try {
-  if (needsHost.includes(command) && !existsSync(path.join(root, "packages/agent/src/host/run.ts"))) throw new Error(`${command}: no dev host in this checkout yet. It arrives with step 2 of docs/architecture/ROADMAP.md; check, verify, model, packages, features and doctor work now.`);
-  const control = ["doctor", "env", "send", "wait-settle", "chat", "tool", "select", "state", "log", "trace", "screenshot", "snapshot", "click", "type", "press", "eval", "reload"].includes(command) ? await import("../tools/control.mjs") : null;
-  const env = () => control.requireEnv();
+  const c = controlled.includes(command) ? await import("../tools/control.mjs") : null;
+  const env = () => c.requireEnv();
+  const maybeWait = async result => { if (!opts.wait) return result; return { ...result, settled: await c.waitSettle(env(), opts) }; };
   switch (command) {
     case "check": {
       loadRegistries();
@@ -68,73 +84,64 @@ try {
       console.log("Package architecture and evidence registry checks passed");
       break;
     }
+    case "lint": {
+      const status = sh(process.execPath, [path.join(path.dirname(require.resolve("oxlint/package.json")), "bin/oxlint"), "-c", ".oxlintrc.json", "."]);
+      if (status !== 0) { process.exitCode = status; break; }
+      loadRegistries();
+      const errors = await checkArchitecture(root);
+      if (errors.length) throw new Error(errors.join("\n"));
+      console.log("lint: oxlint clean, import direction and registries checked");
+      break;
+    }
+    case "typecheck": process.exitCode = node([require.resolve("typescript/bin/tsc"), "-p", "tsconfig.json"]); break;
+    case "test": process.exitCode = node(["--disable-warning=ExperimentalWarning", "--test", ...(opts._.length ? opts._ : ["test/agent/*.test.ts", "test/chat/*.test.ts", "test/architecture/*.test.mjs"])]); break;
     case "verify": if (!verify(opts._[0] ?? "all")) process.exitCode = 1; break;
     case "model": { const result = runModel(opts._[0]); process.stdout.write(result.output); if (result.status !== 0) process.exitCode = 1; break; }
-    case "packages": { const p = JSON.parse(readFileSync(path.join(root, "ARCHITECTURE.json"), "utf8")).packages; console.log(Object.entries(p).map(([n, r]) => `${n} -> ${[...r.dependsOn, ...r.typeOnlyDependsOn.map(d => `${d} (types)`)].join(", ") || "nothing"}`).join("\n")); break; }
+    case "laws": process.stdout.write(readFileSync(path.join(root, "docs/LAWS.md"), "utf8")); break;
     case "features": process.stdout.write(readFileSync(path.join(root, ".agent/skills/verify-boring/features/README.md"), "utf8")); break;
     case "doctor": {
-      const { doctor } = await import("../tools/drive.mjs");
-      const rows = [...doctor(opts), ...await control.instanceRows()];
-      print(rows, r => r.map(row => `${row.ok ? "ok " : "-- "} ${row.name.padEnd(16)} ${row.detail}${row.ok ? "" : `\n     ${row.unlocks}`}`).join("\n"));
+      const rows = await c.doctor(opts);
+      print(rows, r => r.map(row => `${row.ok ? "ok " : "-- "} ${row.name.padEnd(16)} ${row.detail}${row.ok ? "" : `\n     unlocks: ${row.unlocks}`}`).join("\n"));
       break;
     }
     case "env": {
       const sub = opts._[0] ?? "info";
-      if (sub === "up") print(await control.envUp({ ...opts, fresh: opts["keep-data"] ? false : true }), e => `hub ${e.url} (model ${e.model}${e.seed ? `, seed ${e.seed}` : ""})\nbrowser ${e.browser?.cdp ?? e.browser?.error ?? "none"}\n${Object.keys(e.seeded).length ? `seeded ${JSON.stringify(e.seeded)}\n` : ""}state .cache/env/ (logs: .cache/env/host.log)`);
-      else if (sub === "down") print(await control.envDown(opts), r => r.stopped ? `stopped ${r.url}` : "nothing running");
-      else if (sub === "seeds") print(Object.keys(control.seedsFor((control.readEnv()?.appDir) ?? path.join(root, "test/fixtures/apps/notes"))), s => s.join("\n"));
-      else print(await control.envInfo());
+      if (sub === "up") print(await c.envUp({ ...opts, log: m => { if (!opts.json) console.log(m); } }), e => `app ${e.url} (pid ${e.pid}, model ${e.model}${e.seed ? `, seed ${e.seed}` : ""})\nwire ${e.url}/agent as actor ${e.actor}\nbrowser ${e.browser?.cdp ?? e.browser?.error ?? "none"}\n${e.seeded?.length ? `seeded ${e.seeded.map(s => `${Object.keys(s.step)[0]} ${s.id.slice(0, 8)}`).join(", ")}\n` : ""}state ${path.relative(root, e.stateDir)}/env.json (log: ${path.relative(root, e.logFile)})`);
+      else if (sub === "down") print(await c.envDown(opts), r => r.stopped ? `stopped ${r.url}` : "nothing running");
+      else if (sub === "seeds") print(c.seeds(), s => Object.entries(s).map(([name, steps]) => `${name.padEnd(14)} ${steps.map(x => Object.keys(x)[0] === "say" ? `say ${JSON.stringify(x.say)}` : `${Object.keys(x)[0]} ${x.run ?? x.job}`).join("; ") || "nothing"}`).join("\n"));
+      else print(await c.envInfo());
       break;
     }
+    case "manifest": print(await c.manifest(env())); break;
     case "send": {
-      const receipt = await control.send(env(), opts._.join(" "));
-      if (opts.wait) print(await control.waitSettle(env(), opts)); else print(receipt, r => `admitted ${r.submissionId}`);
+      const r = await c.send(env(), opts._.join(" "), { new: !!opts.new, key: opts.key });
+      print(await maybeWait({ thread: r.thread, run: r.run.id, status: r.run.status }), x => `thread ${x.thread}\nrun ${x.run} ${x.status}${x.settled ? `\nsettled; reply: ${x.settled.reply}` : ""}`);
       break;
     }
-    case "wait-settle": print(await control.waitSettle(env(), opts)); break;
-    case "chat": {
-      const conv = await control.conversation(env());
-      print(conv, c => c.messages.filter(m => m.display !== "hidden").map(m => m.parts.map(p => p.type === "text" ? `${m.role}: ${p.text}` : p.type === "dynamic-tool" ? `  ↳ ${p.toolName}(${JSON.stringify(p.input)}) ${p.state} ${JSON.stringify(p.output ?? p.errorText ?? "")}` : "").filter(Boolean).join("\n")).join("\n"));
-      break;
-    }
-    case "tool": { const res = await control.tool(env(), opts._[0], opts._[1] ? JSON.parse(opts._[1]) : {}); print(res.body); if (res.status !== 200) process.exitCode = 1; break; }
-    case "select": print((await control.select(env(), opts._[0])).body); break;
-    case "state": { const s = await control.state(env()); delete s.events; print(s); break; }
-    case "log": print(await control.effectLog(env(), opts), lines => lines.join("\n")); break;
-    case "trace": {
-      const t = await control.trace(env(), opts._[0]);
-      print(t, x => [`${x.job.id} [${x.job.kind}] ${x.job.status}${x.job.error ? `: ${x.job.error.message}` : ""}`, ...x.children.map(c => `  ${c.id} ${c.actor.id} ${c.status}${c.error ? `: ${c.error.message}` : ""}`),
-        ...x.executions.flatMap(e => [`\n--- ${e.job} (${e.instance})`, ...(e.conversation?.messages ?? []).map(m => m.parts.map(p => p.type === "text" ? `${m.role}: ${p.text.slice(0, 600)}` : p.type === "dynamic-tool" ? `  ↳ ${p.toolName}(${JSON.stringify(p.input).slice(0, 300)}) ${p.state} ${JSON.stringify(p.output ?? p.errorText ?? "").slice(0, 300)}` : "").filter(Boolean).join("\n"))])].join("\n"));
-      break;
-    }
-    case "screenshot": print(await control.screenshot(env(), opts._[0])); break;
-    case "snapshot": print(await control.snapshot(env(), opts._[0])); break;
-    case "click": print(await control.click(env(), opts._[0])); break;
-    case "type": print(await control.type(env(), opts._[0], opts._.slice(1).join(" "))); break;
-    case "press": print(await control.press(env(), opts._[0], opts.in)); break;
-    case "eval": print(await control.evaluate(env(), opts._.join(" "))); break;
-    case "reload": print(await control.reload(env())); break;
-    case "run": {
-      const { runHost } = await import("../tools/drive.mjs");
-      const { child } = runHost(process.argv.slice(3), { inherit: true });
-      child.on("exit", code => { process.exitCode = code ?? 0; });
-      break;
-    }
-    case "smoke": case "e2e": case "drive": {
-      const drive = await import("../tools/drive.mjs");
-      const { drivers } = await import("../.agent/skills/verify-boring/drive/drivers.mjs");
-      const names = opts._.length && opts._[0] !== "all" ? opts._ : Object.keys(drivers);
-      let host = null, url = opts.url;
-      if (!url) {
-        host = drive.runHost(["--model", opts.model ?? "scripted", ...(opts["chat-bundle"] ?? process.env.BORING_CHAT_BUNDLE ? ["--chat-bundle", opts["chat-bundle"] ?? process.env.BORING_CHAT_BUNDLE] : [])]);
-        url = (await host.ready).url;
-        console.log(`hub ${url} (throwaway)`);
-      }
-      try {
-        const outcome = await drive.drive(names, { ...opts, url });
-        drive.printResults(outcome);
-        if (outcome.results.some(r => !r.ok)) process.exitCode = 1;
-      } finally { host?.child.kill("SIGTERM"); }
+    case "wait-settle": print(await c.waitSettle(env(), opts), s => `settled at cursor ${s.cursor}; runs ${JSON.stringify(s.runs)}; jobs ${JSON.stringify(s.jobs)}${s.latest ? `\nlatest run ${s.latest.id.slice(0, 8)} ${s.latest.agent} ${s.latest.status}${s.latest.error ? `: ${s.latest.error}` : ""}` : ""}${s.reply ? `\nreply: ${s.reply}` : ""}`); break;
+    case "chat": print(await c.chat(env()), x => x.thread ? `thread ${x.thread}\n${c.renderEvents(x.events)}` : "no thread yet: boring send \"...\""); break;
+    case "tool": { const r = await c.startRun(env(), opts._[0], parseJson(opts._[1]), { key: opts.key, thread: opts.thread }); print(await maybeWait(r)); break; }
+    case "job": { const r = await c.startJob(env(), opts._[0], parseJson(opts._[1]), { key: opts.key, thread: opts.thread }); print(await maybeWait(r)); break; }
+    case "cancel": { const r = await c.cancel(env(), opts._[0]); print(r.body); if (r.status !== 200) process.exitCode = 1; break; }
+    case "runs": print(c.runs(env(), opts), rows => rows.map(r => `${r.id} ${r.agent.padEnd(10)} ${r.status.padEnd(9)} ${r.job ? `job ${r.job.slice(0, 8)} ` : ""}${r.created_at}${r.error ? `  ${r.error}` : ""}`).join("\n") || "no runs"); break;
+    case "run": print(await c.run(env(), opts._[0]), x => `${JSON.stringify(x.run, null, 2)}\n${c.renderEvents(x.events)}`); break;
+    case "trace": print(await c.trace(env(), opts._[0]), c.renderTrace); break;
+    case "state": print(c.state(env())); break;
+    case "log": print(c.log(env(), opts), lines => lines.join("\n") || "nothing recorded"); break;
+    case "screenshot": print(await c.screenshot(env(), opts._[0])); break;
+    case "snapshot": print(await c.snapshot(env(), opts._[0])); break;
+    case "click": print(await c.click(env(), opts._[0])); break;
+    case "type": print(await c.type(env(), opts._[0], opts._.slice(1).join(" "))); break;
+    case "press": print(await c.press(env(), opts._[0], opts.in)); break;
+    case "wait-for": print(await c.waitFor(env(), opts._[0], opts.timeout ? Number(opts.timeout) * 1000 : undefined)); break;
+    case "eval": print(await c.evaluate(env(), opts._.join(" "))); break;
+    case "reload": print(await c.reload(env())); break;
+    case "goto": print(await c.goto(env(), opts._[0] ?? "/")); break;
+    case "smoke": {
+      const { smoke, printSmoke } = await import("../tools/smoke.mjs");
+      const result = await smoke({ browser: opts.browser !== false, evidence: opts.evidence });
+      if (opts.json) console.log(JSON.stringify(result, null, 2)); else printSmoke(result);
+      if (!result.ok) process.exitCode = 1;
       break;
     }
     default:
@@ -145,3 +152,4 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 }
+if (!existsSync(path.join(root, "package.json"))) process.exitCode = 1;

@@ -8,17 +8,22 @@
   ],
   "scripts": {
     "check": "node bin/boring.mjs check",
-    "verify": "node bin/boring.mjs verify all",
-    "typecheck": "tsc -p tsconfig.json",
+    "lint": "node bin/boring.mjs lint",
+    "typecheck": "node bin/boring.mjs typecheck",
+    "test": "node bin/boring.mjs test",
     "test:architecture": "node --test test/architecture/*.test.mjs",
     "test:formal": "node --test test/formal/*.test.mjs",
-    "setup:formal": "node tools/setup-formal.mjs"
+    "smoke": "node bin/boring.mjs smoke",
+    "verify": "node bin/boring.mjs verify all",
+    "setup:formal": "node tools/setup-formal.mjs",
+    "build:example": "vite build examples/notes/web"
   },
   "devDependencies": {
     "@types/node": "22.19.15",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "oxlint": "^1.86.0",
     "playwright-core": "1.57.0",
     "tsx": "4.20.6",
     "typescript": "5.9.3",

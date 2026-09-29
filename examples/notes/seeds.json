@@ -1,0 +1,16 @@
+{
+  "empty": [],
+  "asked": [
+    { "say": "What do I need to buy?", "wait": true }
+  ],
+  "conversation": [
+    { "say": "What do I need to buy?", "wait": true },
+    { "say": "And who should I call?", "wait": true }
+  ],
+  "summarised": [
+    { "run": "summarise", "inputs": { "note": "Buy milk tomorrow." }, "key": "seed-summarised", "wait": true }
+  ],
+  "digested": [
+    { "job": "digest", "inputs": { "notes": ["Buy milk tomorrow.", "Call the dentist on Monday."] }, "key": "seed-digested", "wait": true }
+  ]
+}
