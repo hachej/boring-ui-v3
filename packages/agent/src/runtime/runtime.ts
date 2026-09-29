@@ -236,13 +236,37 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
 
   function threadFor(actor: Actor, id: string | undefined): ThreadRecord { return id ? ownThread(actor, id) : store.createThread(actor.id); }
 
-  /** Same key and same request: the recorded target. Same key, another request: 409 (SPEC §4.3). */
-  function dedupe<T>(actor: Actor, key: string | undefined, request: unknown, find: (target: string) => T): T | null {
-    if (!key) return null;
-    const seen = store.idempotent(actor.id, key, request);
-    if (!seen) return null;
-    if ("conflict" in seen) throw new RuntimeError(409, `idempotency key "${key}" was used with a different request`);
-    return find(seen.target);
+  /**
+   * Same key and same request: the recorded target. Same key, another request: 409 (SPEC §4.3, AGENT-11). The key is
+   * reserved synchronously before `create` awaits anything, so a concurrent same-key request finds the reservation and
+   * waits for its target instead of creating a second one; a `create` that fails releases the key.
+   */
+  const inflight = new Map<string, Promise<string>>();
+  async function keyed<T>(actor: Actor, key: string | undefined, request: unknown, find: (target: string) => T, create: () => Promise<{ target: string; value: T }>): Promise<T> {
+    if (!key) return (await create()).value;
+    const slotKey = `${actor.id}\u0000${key}`;
+    const reservation = store.reserveKey(actor.id, key, request);
+    if (reservation.state === "conflict") throw new RuntimeError(409, `idempotency key "${key}" was used with a different request`);
+    if (reservation.state === "recorded") return find(reservation.target);
+    if (reservation.state === "pending") {
+      const waiting = inflight.get(slotKey);
+      if (!waiting) throw new RuntimeError(409, `idempotency key "${key}" is being used by a request still in progress`);
+      return find(await waiting);
+    }
+    let settle!: { resolve: (target: string) => void; reject: (error: unknown) => void };
+    const promise = new Promise<string>((resolve, reject) => { settle = { resolve, reject }; });
+    promise.catch(() => {});
+    inflight.set(slotKey, promise);
+    try {
+      const { target, value } = await create();
+      store.fillKey(actor.id, key, target);
+      settle.resolve(target);
+      return value;
+    } catch (error) {
+      store.releaseKey(actor.id, key);
+      settle.reject(error);
+      throw error;
+    } finally { inflight.delete(slotKey); }
   }
 
   let stopped = false;
@@ -253,13 +277,12 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     async startRun(actor, request) {
       const definition = agentOf(request.agent);
       const body = { agent: request.agent, message: request.message ?? null, inputs: request.inputs ?? {}, thread: request.thread ?? null };
-      const seen = dedupe(actor, request.idempotencyKey, body, target => store.run(target));
-      if (seen) return seen;
-      const thread = threadFor(actor, request.thread);
-      const input = { ...(request.inputs ?? {}), ...(request.message !== undefined ? { message: request.message } : {}) };
-      const { run } = await launch({ definition, actor, thread, input, personText: request.message ?? JSON.stringify(request.inputs ?? {}), history: [] });
-      if (request.idempotencyKey) store.rememberKey(actor.id, request.idempotencyKey, body, run.id);
-      return run;
+      return keyed(actor, request.idempotencyKey, body, target => store.run(target)!, async () => {
+        const thread = threadFor(actor, request.thread);
+        const input = { ...(request.inputs ?? {}), ...(request.message !== undefined ? { message: request.message } : {}) };
+        const { run } = await launch({ definition, actor, thread, input, personText: request.message ?? JSON.stringify(request.inputs ?? {}), history: [] });
+        return { target: run.id, value: run };
+      });
     },
 
     run: (actor, id) => ownRun(actor, id),
@@ -277,35 +300,34 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       const definition: JobDefinition | undefined = app.jobs.get(request.job);
       if (!definition) throw new RuntimeError(404, `unknown job "${request.job}"`);
       const body = { job: request.job, inputs: request.inputs ?? {}, thread: request.thread ?? null };
-      const seen = dedupe(actor, request.idempotencyKey, body, target => store.job(target));
-      if (seen) return seen;
-      const inputs = request.inputs ?? {};
-      let plan: readonly { agent: string; input: Record<string, unknown> }[];
-      try { plan = await definition.plan(inputs); } catch (error) { throw new RuntimeError(400, `${definition.name}: ${(error as Error).message}`); }
-      // Composition is predeclared: a child the definition did not name is refused before anything is recorded.
-      for (const child of plan) if (!definition.children.includes(child.agent)) throw new RuntimeError(400, `job "${definition.name}" cannot start "${child.agent}": not among its declared children`);
-      if (!plan.length) throw new RuntimeError(400, `job "${definition.name}" planned no children`);
-      const thread = threadFor(actor, request.thread);
-      const job = store.createJob({ definition: definition.name, actor: actor.id, thread: thread.id, input: inputs });
-      if (request.idempotencyKey) store.rememberKey(actor.id, request.idempotencyKey, body, job.id);
-      const children: { agent: string; done: Promise<RunRecord> }[] = [];
-      try {
-        for (const child of plan) {
-          const { done } = await launch({ definition: agentOf(child.agent), actor, thread, input: child.input, personText: null, history: [], job: job.id });
-          children.push({ agent: child.agent, done });
+      return keyed(actor, request.idempotencyKey, body, target => store.job(target)!, async () => {
+        const inputs = request.inputs ?? {};
+        let plan: readonly { agent: string; input: Record<string, unknown> }[];
+        try { plan = await definition.plan(inputs); } catch (error) { throw new RuntimeError(400, `${definition.name}: ${(error as Error).message}`); }
+        // Composition is predeclared: a child the definition did not name is refused before anything is recorded.
+        for (const child of plan) if (!definition.children.includes(child.agent)) throw new RuntimeError(400, `job "${definition.name}" cannot start "${child.agent}": not among its declared children`);
+        if (!plan.length) throw new RuntimeError(400, `job "${definition.name}" planned no children`);
+        const thread = threadFor(actor, request.thread);
+        const job = store.createJob({ definition: definition.name, actor: actor.id, thread: thread.id, input: inputs });
+        const children: { agent: string; done: Promise<RunRecord> }[] = [];
+        try {
+          for (const child of plan) {
+            const { done } = await launch({ definition: agentOf(child.agent), actor, thread, input: child.input, personText: null, history: [], job: job.id });
+            children.push({ agent: child.agent, done });
+          }
+        } catch (error) {
+          store.finishJob(job.id, { status: "failed", error: (error as Error).message });
+          throw error;
         }
-      } catch (error) {
-        store.finishJob(job.id, { status: "failed", error: (error as Error).message });
-        throw error;
-      }
-      // A parent completes only from completed children; a failed or cancelled child fails the parent.
-      track(Promise.all(children.map(c => c.done)).then(runs => {
-        const bad = runs.find(r => r.status !== "completed");
-        if (bad) { store.finishJob(job.id, { status: bad.status === "cancelled" ? "cancelled" : "failed", error: bad.error ?? `child ${bad.agent} ${bad.status}` }); return; }
-        try { store.finishJob(job.id, { status: "completed", output: definition.collect(runs.map(r => ({ agent: r.agent, output: r.output })), inputs) }); }
-        catch (error) { store.finishJob(job.id, { status: "failed", error: `collect: ${(error as Error).message}` }); }
-      }));
-      return store.job(job.id)!;
+        // A parent completes only from completed children; a failed or cancelled child fails the parent.
+        track(Promise.all(children.map(c => c.done)).then(runs => {
+          const bad = runs.find(r => r.status !== "completed");
+          if (bad) { store.finishJob(job.id, { status: bad.status === "cancelled" ? "cancelled" : "failed", error: bad.error ?? `child ${bad.agent} ${bad.status}` }); return; }
+          try { store.finishJob(job.id, { status: "completed", output: definition.collect(runs.map(r => ({ agent: r.agent, output: r.output })), inputs) }); }
+          catch (error) { store.finishJob(job.id, { status: "failed", error: `collect: ${(error as Error).message}` }); }
+        }));
+        return { target: job.id, value: store.job(job.id)! };
+      });
     },
 
     job(actor, id) {
@@ -320,8 +342,7 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       const text = typeof request.text === "string" ? request.text.trim() : "";
       if (!text) throw new RuntimeError(400, "text is required");
       const body = { conversation: request.conversation, text, inputs: request.inputs ?? {}, thread: request.thread ?? null };
-      const seen = dedupe(actor, request.idempotencyKey, body, target => { const run = store.run(target)!; return { thread: store.thread(run.thread)!, run }; });
-      if (seen) return seen;
+      return keyed(actor, request.idempotencyKey, body, target => { const run = store.run(target)!; return { thread: store.thread(run.thread)!, run }; }, async () => {
       const thread = threadFor(actor, request.thread);
       const history: History = store.eventsOf({ thread: thread.id }).flatMap(event => {
         if (event.kind !== "message") return [];
@@ -330,8 +351,8 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       }).slice(-definition.history);
       const context = definition.context ? await definition.context({ ...(request.inputs ?? {}), thread: thread.id, text }) : {};
       const { run } = await launch({ definition: agentOf(definition.agent), actor, thread, input: { ...context, ...(request.inputs ?? {}), text }, personText: text, history });
-      if (request.idempotencyKey) store.rememberKey(actor.id, request.idempotencyKey, body, run.id);
-      return { thread, run };
+      return { target: run.id, value: { thread, run } };
+      });
     },
 
     thread: (actor, id) => ownThread(actor, id),

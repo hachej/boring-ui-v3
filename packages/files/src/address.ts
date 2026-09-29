@@ -24,7 +24,7 @@ export const attachedMount = (name: string): string => {
 export function canonicalPath(input: string): string {
   if (typeof input !== "string") throw new FileProviderError({ code: "bad-address" }, "path must be a string");
   const text = input.normalize("NFC");
-  if (/[\u0000-\u001f\u007f\\%:]/.test(text)) throw new FileProviderError({ code: "bad-address" }, `path "${input}" contains a refused character`);
+  for (const ch of text) { const code = ch.codePointAt(0)!; if (code < 0x20 || code === 0x7f || ch === "\\" || ch === "%" || ch === ":") throw new FileProviderError({ code: "bad-address" }, `path "${input}" contains a refused character`); }
   const segments = text.split("/").filter(segment => segment !== "");
   for (const segment of segments) {
     if (segment === "." || segment === "..") throw new FileProviderError({ code: "bad-address" }, `path "${input}" traverses`);

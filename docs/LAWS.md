@@ -6,36 +6,39 @@ The library speaks in the developer's words (an actor, a thread, a run, a job, a
 
 | Law | Owner file | One line | Evidence (VERIFY.json entry) | Hub noun |
 |---|---|---|---|---|
-| BORING-1 | [INVARIANTS.md](../INVARIANTS.md) | Model output is never authority | test/agent/admission.test.ts; text in files, records and pages deferred | Environment (admission), Actor |
-| BORING-2 | [INVARIANTS.md](../INVARIANTS.md) | Every effect leaves a receipt | test/agent/attribution.test.ts; file and record receipts deferred to files | Resource (receipt), Environment |
-| BORING-3 | [INVARIANTS.md](../INVARIANTS.md) | One contract, every transport | deferred to the files conformance suite | Resource |
+| BORING-1 | [INVARIANTS.md](../INVARIANTS.md) | Model output is never authority | test/agent/admission.test.ts; test/agent/files.test.ts (paths); test/chat/bridge.test.ts (page input) | Environment (admission), Actor |
+| BORING-2 | [INVARIANTS.md](../INVARIANTS.md) | Every effect leaves a receipt | test/agent/attribution.test.ts; test/files/receipts.test.ts; test/agent/files.test.ts (mount, path, revisions) | Resource (receipt), Environment |
+| BORING-3 | [INVARIANTS.md](../INVARIANTS.md) | One contract, every transport | test/files/conformance.test.ts (memory, directory, GitHub); HTTP routes deferred | Resource |
 | BORING-4 | [INVARIANTS.md](../INVARIANTS.md) | Presentation requests, it never owns | test/chat/client.test.ts; `boring smoke` (reload and restart); the tree deferred | Experience (a composition, not a noun) over Job and Resource |
 | BORING-5 | [INVARIANTS.md](../INVARIANTS.md) | Evidence matches the claim | test/architecture (checker, registries, lint); test/formal (mutants) | the method itself (hub PLATFORM-5 cites it) |
 | BORING-6 | [INVARIANTS.md](../INVARIANTS.md) | Packages depend one way | tools/check.mjs; `boring lint`; typecheck; definitions test | structure, no noun |
-| FILES-1 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A read names its revision | deferred: files conformance | Resource (revision) |
-| FILES-2 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A write names the revision it saw | model `files-commit`; conformance deferred | Resource (update precondition) |
-| FILES-3 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Create is not overwrite | deferred: files conformance | Resource (create precondition) |
-| FILES-4 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Removal keeps revisions monotonic | deferred: files conformance | Resource (revision) |
-| FILES-5 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A mount confines every address | deferred: address tests | Resource (identity), Environment (grant scope) |
-| FILES-6 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | One authority per mount | deferred: routes and smoke | Resource |
-| FILES-7 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Receipt and mutation commit together | deferred: receipts tests | Resource (receipt), Actor, Job |
-| FILES-8 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A remote provider keeps the contract or refuses | deferred: remote adapter | Resource |
+| FILES-1 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A read names its revision | test/files/conformance.test.ts, receipts.test.ts | Resource (revision) |
+| FILES-2 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A write names the revision it saw | model `files-commit`; test/files/conformance.test.ts | Resource (update precondition) |
+| FILES-3 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Create is not overwrite | test/files/conformance.test.ts | Resource (create precondition) |
+| FILES-4 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Removal keeps revisions monotonic | test/files/conformance.test.ts | Resource (revision) |
+| FILES-5 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A mount confines every address | test/files/address.test.ts; test/agent/files.test.ts (grants) | Resource (identity), Environment (grant scope) |
+| FILES-6 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | One authority per mount | examples/embed-host/test/round-trip.test.ts; routes and tree deferred | Resource |
+| FILES-7 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Receipt and mutation commit together | test/files/conformance.test.ts, receipts.test.ts | Resource (receipt), Actor, Job |
+| FILES-8 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A remote provider keeps the contract or refuses | test/files/remote.test.ts, receipts.test.ts (readonly) | Resource |
 | AGENT-1 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | A run is durable and ends once | test/agent/durability.test.ts; `boring smoke` (restart); resumption deferred | Job (lifecycle), execution record (run) |
 | AGENT-2 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Admission before effect | model `agent-commit`; test/agent/admission.test.ts | Environment (admission, recheck at commit) |
 | AGENT-3 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Declared tools only | test/agent/tools.test.ts | Actor (declared needs), Environment |
-| AGENT-4 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Effects are attributed | test/agent/attribution.test.ts; `boring smoke` (receipt); file revisions deferred | Resource (receipt: Job, Actor, revisions) |
+| AGENT-4 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Effects are attributed | test/agent/attribution.test.ts; `boring smoke` (receipt); test/agent/files.test.ts (file revisions) | Resource (receipt: Job, Actor, revisions) |
 | AGENT-5 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Human decisions are records | deferred: decisions | Job (waiting condition), Approval record |
 | AGENT-6 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Stop means stop | model `agent-commit`; test/agent/stop.test.ts | Environment (revocation, cancellation before commit) |
 | AGENT-7 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Credentials live in the host | test/agent/credentials.test.ts | Environment (borrowed credentials) |
 | AGENT-8 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | The host is the only source of authority | test/agent/host.test.ts, admission.test.ts | Environment (issued by the host), Actor (identity) |
-| AGENT-9 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Roles belong to the application | test/agent/tools.test.ts; mounts and answers deferred | Actor (roles are the application's) |
+| AGENT-9 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Roles belong to the application | test/agent/tools.test.ts; test/agent/files.test.ts, ui.test.ts (mounts, page commands); answers deferred | Actor (roles are the application's) |
 | AGENT-10 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Every model call is metered | test/agent/usage.test.ts; `boring smoke` (usage row) | Environment (budget), Actor (attribution) |
-| AGENT-11 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Request-work is idempotent by key | model `agent-idempotency`; test/agent/wire.test.ts; `boring smoke` | Job (request-work, SPEC §4.3 idempotency) |
+| AGENT-11 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | Request-work is idempotent by key | model `agent-idempotency`; test/agent/wire.test.ts, idempotency.test.ts (concurrent keys); `boring smoke` | Job (request-work, SPEC §4.3 idempotency) |
 | AGENT-12 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | A job's composition is predeclared | model `agent-composition`; test/agent/wire.test.ts; `boring smoke` | Job (predeclared composition, frozen at start) |
+| AGENT-13 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | A page command is a request, answered once by the bound page | test/agent/ui.test.ts | Environment (declared limits), hub UI-BOUNDARY-1, -4, -5 |
 | CHAT-1 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | The chat is a projection | test/chat/client.test.ts; `boring smoke` (reload in a browser) | Experience over Job records |
-| CHAT-2 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | Placeable anywhere | `boring smoke` (the example's bare page) | Experience |
-| CHAT-3 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | UI commands are allowlisted by the app | deferred: the bridge | Environment (declared limits), hub UI-BOUNDARY |
+| CHAT-2 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | Placeable anywhere | `boring smoke` (the example's bare page); examples/embed-host/test/browser.test.ts (another app's page, tokens) | Experience |
+| CHAT-3 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | Page commands are registered by the page and checked in the bridge | test/chat/bridge.test.ts; test/agent/ui.test.ts | Environment (declared limits), hub UI-BOUNDARY |
 | CHAT-4 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | A person's answer comes from the person | test/agent/host.test.ts, wire.test.ts; `boring smoke` (ownership); answers deferred | Actor (authenticated initiator), Approval record |
+
+| CHAT-5 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | The shell is a skin | examples/embed-host/test/browser.test.ts (no stylesheet, tokens) | Experience |
 
 ## Reading the evidence column
 

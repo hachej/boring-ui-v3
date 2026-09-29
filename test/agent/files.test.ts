@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { bootEmbed } from "./embed.ts";
-import { makeHost, type Script } from "./helpers.ts";
+import type { Script } from "./helpers.ts";
 import type { Grant } from "@boring/agent";
 
 /** The fake provider hands tool results back as JSON text of the tool's JSON string: parse until an object appears. */

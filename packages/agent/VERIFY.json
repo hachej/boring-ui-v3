@@ -239,6 +239,16 @@
           ],
           "timeout": 600,
           "claim": "On the running example over HTTP: the same key with the same body returns the recorded run, another body is 409."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/idempotency.test.ts"
+          ],
+          "claim": "Concurrent requests with one key create one run, one job or one message: the key is reserved synchronously before any await; a request that fails frees its key; another body under a reserved key is a conflict."
         }
       ]
     },

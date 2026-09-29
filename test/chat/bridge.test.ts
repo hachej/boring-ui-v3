@@ -17,7 +17,6 @@ test("CHAT-3: the bridge registers the page's commands, answers the agent's requ
   let shown = { kind: "record", id: "r1", version: "1" };
   const bridge = createUiBridge({ client, thread, page: "page-a", target: () => shown, commands: [{ ...open, handler: async input => { opened.push((input as { id: string }).id); return { outcome: "applied", detail: { now: (input as { id: string }).id } }; } }] });
   await bridge.start();
-  t.after(() => bridge.stop());
   assert.deepEqual((await client.uiRegistrations(thread)).map(r => [r.page, r.commands.map(c => c.name), r.target]), [["page-a", ["open_record"], shown]]);
   const run = await settled((await client.say("chat", "open r7", { thread })).run.id);
   assert.equal(run.status, "completed", run.error);

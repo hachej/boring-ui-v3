@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS usage(id TEXT PRIMARY KEY, actor TEXT NOT NULL, threa
   input INTEGER NOT NULL, output INTEGER NOT NULL, cached INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY, actor TEXT NOT NULL, thread TEXT NOT NULL, run TEXT NOT NULL, tool TEXT NOT NULL, input_hash TEXT NOT NULL,
   ok INTEGER NOT NULL, revisions TEXT, at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS idempotency(actor TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL, target TEXT NOT NULL, PRIMARY KEY(actor, key));
+CREATE TABLE IF NOT EXISTS idempotency(actor TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL, target TEXT, PRIMARY KEY(actor, key));
 CREATE TABLE IF NOT EXISTS ui_requests(id TEXT PRIMARY KEY, run TEXT NOT NULL, thread TEXT NOT NULL, page TEXT NOT NULL, command TEXT NOT NULL, input TEXT NOT NULL,
   target TEXT, state TEXT NOT NULL, result TEXT, at TEXT NOT NULL, answered_at TEXT);
 `;
@@ -89,6 +89,8 @@ export class Store {
       failed.push(this.run(row.id as string)!);
     }
     for (const row of this.db.prepare("SELECT id FROM jobs WHERE status IN ('pending','running')").all() as Row[]) this.finishJob(row.id as string, { status: "failed", error: reason });
+    // A key reserved by a request the dead process never finished holds no target: it is free again.
+    this.db.prepare("DELETE FROM idempotency WHERE target IS NULL").run();
     return failed;
   }
 
@@ -103,14 +105,22 @@ export class Store {
     return row ? { id: row.id as string, actor: row.actor as string, createdAt: row.created_at as string } : null;
   }
 
-  // Idempotency (SPEC §4.3): same key and request → the recorded target; same key, other request → conflict.
-  idempotent(actor: string, key: string, request: unknown): { target: string } | { conflict: true } | null {
-    const row = this.db.prepare("SELECT request_hash, target FROM idempotency WHERE actor = ? AND key = ?").get(actor, key) as Row | undefined;
-    if (!row) return null;
-    return row.request_hash === hashOf(request) ? { target: row.target as string } : { conflict: true };
+  // Idempotency (SPEC §4.3, AGENT-11): the key is reserved in one synchronous step before anything else happens for it,
+  // so two concurrent requests with one key cannot both create a target. A reserved row has no target until `fillKey`.
+  reserveKey(actor: string, key: string, request: unknown): { state: "reserved" } | { state: "recorded"; target: string } | { state: "pending" } | { state: "conflict" } {
+    const hash = hashOf(request);
+    const inserted = this.db.prepare("INSERT OR IGNORE INTO idempotency(actor, key, request_hash, target) VALUES(?,?,?,NULL)").run(actor, key, hash).changes > 0;
+    if (inserted) return { state: "reserved" };
+    const row = this.db.prepare("SELECT request_hash, target FROM idempotency WHERE actor = ? AND key = ?").get(actor, key) as Row;
+    if (row.request_hash !== hash) return { state: "conflict" };
+    return row.target === null ? { state: "pending" } : { state: "recorded", target: row.target as string };
   }
-  rememberKey(actor: string, key: string, request: unknown, target: string) {
-    this.db.prepare("INSERT INTO idempotency(actor, key, request_hash, target) VALUES(?,?,?,?)").run(actor, key, hashOf(request), target);
+  fillKey(actor: string, key: string, target: string) {
+    this.db.prepare("UPDATE idempotency SET target = ? WHERE actor = ? AND key = ? AND target IS NULL").run(target, actor, key);
+  }
+  /** The request behind a reservation failed before it had a target: the key is free again. */
+  releaseKey(actor: string, key: string) {
+    this.db.prepare("DELETE FROM idempotency WHERE actor = ? AND key = ? AND target IS NULL").run(actor, key);
   }
 
   // Runs
