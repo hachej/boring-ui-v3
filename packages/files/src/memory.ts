@@ -4,7 +4,7 @@
  * (FILES-4), and every revision ever issued stays readable for exact resolution (SPEC §2.2).
  */
 import { FileProviderError } from "./errors.ts";
-import type { Effect, Entry, FileAddress, FileProvider, ReadOptions, Receipt, WriteCondition } from "./index.ts";
+import type { Effect, Entry, FileAddress, FileProvider, ReadOptions, Receipt, WriteCondition } from "./contract.ts";
 import type { ReceiptLog } from "./receipts.ts";
 
 export type MemoryProviderOptions = Readonly<{

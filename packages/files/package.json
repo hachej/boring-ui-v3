@@ -4,5 +4,8 @@
   "description": "Files under mounts with revisions and receipts: one provider contract for the tree, the HTTP endpoints and an agent's file tools.",
   "type": "module",
   "private": true,
-  "exports": { ".": "./src/index.ts" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./web": "./src/web.ts"
+  }
 }

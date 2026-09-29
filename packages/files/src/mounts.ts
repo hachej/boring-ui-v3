@@ -5,7 +5,7 @@
  */
 import { canonicalPath, isMountName } from "./address.ts";
 import { FileProviderError } from "./errors.ts";
-import type { FileAddress, FileProvider } from "./index.ts";
+import type { FileAddress, FileProvider } from "./contract.ts";
 
 export type MountTable = Readonly<Record<string, FileProvider>>;
 
