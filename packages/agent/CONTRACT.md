@@ -51,7 +51,8 @@ Page-command fields (see [docs/design/ui-bridge.md](../../docs/design/ui-bridge.
 ## Views
 
 ```
-RunView  { id, thread, agent, job?, status, output?, error?, model?, attempts, createdAt, endedAt? }
+RunView  { id, thread, agent, job?, status, output?, error?, failure?, model?, attempts, createdAt, endedAt? }
+         failure: "invalid_output" | "revoked" | "interrupted" | "error", set only on a failed run; error is the sentence in the app's language (AGENT-14)
 JobView  { id, definition, thread, status, children: RunView[], output?, error?, createdAt, endedAt? }
 ```
 

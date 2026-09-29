@@ -8,7 +8,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { FileProviderError, type Effect, type Entry, type FileAddress, type FileProvider, type FileRef, type ReadOptions, type Receipt, type WriteCondition } from "./index.ts";
+import { FileProviderError } from "./errors.ts";
+import type { Effect, Entry, FileAddress, FileProvider, FileRef, ReadOptions, Receipt, WriteCondition } from "./index.ts";
 import type { ReceiptLog } from "./receipts.ts";
 
 export type DirectoryProviderOptions = Readonly<{ root: string; receipts?: ReceiptLog }>;

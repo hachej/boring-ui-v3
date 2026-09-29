@@ -6,7 +6,8 @@
  */
 import type { Receipt } from "@boring/files";
 import type { Actor, AgentDefinition, ConversationDefinition, Effort, Grant, JobDefinition, Run, RuntimeOptions, ToolDefinition, UiAnswer, UiRegistration, Usage } from "../index.ts";
-import { OutputError } from "../index.ts";
+import { OutputError } from "../errors.ts";
+import { phrasesFor } from "../phrases.ts";
 import type { Event, UiCommandSpec, UiRegistrationView, UiRequestView } from "../wire.ts";
 import { FILE_TOOLS, fileTools, grantsFor, guardedFiles } from "./files.ts";
 import { Store, hashOf, isTerminal, type JobRecord, type RunRecord, type ThreadRecord } from "./store.ts";
@@ -31,6 +32,10 @@ export interface Runtime {
   cancel(actor: Actor, id: string): Promise<RunRecord>;
   startJob(actor: Actor, request: StartJobRequest): Promise<JobRecord>;
   job(actor: Actor, id: string): JobRecord;
+  /** The runs a job started, in plan order (AGENT-12). */
+  children(actor: Actor, job: string): readonly RunRecord[];
+  /** Resolves with the run once it has ended (completed, failed or cancelled); at once if it already has. */
+  wait(actor: Actor, run: string): Promise<RunRecord>;
   say(actor: Actor, request: ConversationMessageRequest): Promise<{ thread: ThreadRecord; run: RunRecord }>;
   thread(actor: Actor, id: string): ThreadRecord;
   /** An empty thread for this actor, so a page can register its commands before the first message. */
@@ -56,7 +61,8 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
   const repairs = options.repairs ?? 2;
   const uiTimeout = options.uiTimeout ?? 30_000;
   const store = new Store(options.store);
-  const interrupted = store.failInterrupted();
+  const phrases = phrasesFor(options.language, options.phrases);
+  const interrupted = store.failInterrupted(phrases.interrupted);
   for (const run of interrupted) store.addMessage(run.thread, run.id, { role: "agent", run: run.id, parts: [{ type: "text", text: run.error ?? "interrupted" }] });
 
   // Helper tools: the application's handlers plus the ones a definition brings. A name declared without a handler is a load error, not a runtime surprise (AGENT-3).
@@ -90,7 +96,9 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
   const track = <T>(promise: Promise<T>) => { pending.add(promise); promise.finally(() => pending.delete(promise)).catch(() => {}); return promise; };
 
   const settingsFor = (definition: AgentDefinition): { model: string; effort?: Effort } => {
-    const override = options.models?.[definition.name] ?? {};
+    // A function is asked at every run: the application's setting as it stands now (AGENT-8).
+    const models = options.models;
+    const override = (typeof models === "function" ? models(definition.name) : models?.[definition.name]) ?? {};
     return { model: modelFor(definition.name, override.model ?? definition.model), effort: override.effort ?? definition.effort };
   };
   const agentOf = (name: string): AgentDefinition => { const d = app.agents.get(name); if (!d) throw new RuntimeError(404, `unknown agent "${name}"`); return d; };
@@ -187,16 +195,16 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     try {
       if (!store.startRun(run.id)) { store.finishRun(run.id, { status: "cancelled" }); return store.run(run.id)!; }
       const result = await runAgent(definition, {
-        runId: run.id, message, history, tools: bindTools(tools, run, actor, grants), validate: definition.validate, repairs, ...settings,
+        runId: run.id, message, history, tools: bindTools(tools, run, actor, grants), validate: definition.validate, repairs, phrases, ...settings,
         cancelled: () => !!store.run(run.id)?.cancelRequested,
         onUsage: async usage => {
-          const row: Usage = { actor: actor.id, thread: run.thread, run: run.id, agent: definition.name, model: usage.model, input: usage.input, output: usage.output, cached: usage.cached, at: new Date().toISOString() };
+          const row: Usage = { actor: actor.id, thread: run.thread, run: run.id, agent: definition.name, model: usage.model, input: usage.input, output: usage.output, cached: usage.cached, cost: usage.cost, at: new Date().toISOString() };
           store.addUsage(row);
           await host.onUsage(row);
         },
       });
       if (store.run(run.id)!.cancelRequested) { store.finishRun(run.id, { status: "cancelled", attempts: result.attempts }); }
-      else if (!(await host.isActive(asRun(store.run(run.id)!)))) { store.finishRun(run.id, { status: "failed", error: "the host no longer allows this run to act", attempts: result.attempts }); }
+      else if (!(await host.isActive(asRun(store.run(run.id)!)))) { store.finishRun(run.id, { status: "failed", error: phrases.revoked, failure: "revoked", attempts: result.attempts }); }
       else {
         // The answer lands before the terminal transition, so a run's event stream ends with its output in it.
         store.addMessage(run.thread, run.id, { role: "agent", run: run.id, parts: [{ type: "text", text: definition.asText(result.output) }] });
@@ -205,9 +213,10 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     } catch (error) {
       if (error instanceof CancelledError || store.run(run.id)!.cancelRequested) store.finishRun(run.id, { status: "cancelled" });
       else {
-        const text = error instanceof OutputError ? error.message : `run failed: ${(error as Error).message}`;
+        const invalid = error instanceof OutputError;
+        const text = invalid ? error.message : phrases.runFailed((error as Error).message);
         store.addMessage(run.thread, run.id, { role: "agent", run: run.id, parts: [{ type: "text", text }] });
-        store.finishRun(run.id, { status: "failed", error: text });
+        store.finishRun(run.id, { status: "failed", error: text, failure: invalid ? "invalid_output" : "error" });
       }
     } finally {
       release();
@@ -334,6 +343,25 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       const job = store.job(id);
       if (!job || job.actor !== actor.id) throw new RuntimeError(404, `unknown job "${id}"`);
       return job;
+    },
+
+    children(actor, id) {
+      runtime.job(actor, id);
+      return store.runsOfJob(id);
+    },
+
+    wait(actor, id) {
+      const run = ownRun(actor, id);
+      if (isTerminal(run.status)) return Promise.resolve(run);
+      return new Promise(resolve => {
+        let off = () => {};
+        off = store.subscribe({ run: id }, event => {
+          if (event.kind === "run" && isTerminal((event.run as { status: RunRecord["status"] }).status)) { off(); resolve(store.run(id)!); }
+        });
+        // It may have ended between the read and the subscription.
+        const now = store.run(id)!;
+        if (isTerminal(now.status)) { off(); resolve(now); }
+      });
     },
 
     async say(actor, request) {

@@ -98,6 +98,8 @@ export type Usage = Readonly<{
   input: number;
   output: number;
   cached?: number;
+  /** The provider catalog's price of the call (USD for the built-ins); 0 when it gives none, as on a subscription. */
+  cost?: number;
   at: string;
 }>;
 
@@ -107,7 +109,9 @@ export type OutputTool = Readonly<{ name: string; description: string; input: Re
 export type Effort = "minimal" | "low" | "medium" | "high" | "xhigh";
 
 /** A validator refuses an output with this error; the message goes back to the model for a repair. */
-export class OutputError extends Error {}
+export { OutputError } from "./errors.ts";
+export { PHRASES, phrasesFor, type Language, type Phrases, type RunFailure } from "./phrases.ts";
+import type { Language, Phrases } from "./phrases.ts";
 
 /** agents/<name>: the front matter of agent.md, its prompt, its output tool and the module's contract. */
 export type AgentDefinition = Readonly<{
@@ -202,8 +206,15 @@ export type RuntimeOptions = Readonly<{
   /** Path of the SQLite file that holds threads, runs, events, receipts and usage; ":memory:" for tests. */
   store: string;
   model: ModelAccess;
-  /** Per-agent model override, the application's setting; default is the definition's. */
-  models?: Readonly<Record<string, { model?: string; effort?: Effort }>>;
+  /**
+   * Per-agent model override, the application's setting; default is the definition's. A function is
+   * asked at every run, so a setting a person changes applies to the next run without a restart (AGENT-8).
+   */
+  models?: Readonly<Record<string, { model?: string; effort?: Effort }>> | ((agent: string) => { model?: string; effort?: Effort } | undefined);
+  /** The language of the library's own words to models and in records (AGENT-14); English by default. */
+  language?: Language;
+  /** Overrides of single phrases of that language. */
+  phrases?: Partial<Phrases>;
   maxConcurrent?: number;
   /** How many times an invalid output is sent back for repair. */
   repairs?: number;

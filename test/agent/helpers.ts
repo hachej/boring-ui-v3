@@ -44,10 +44,10 @@ export const lookupTool: ToolDefinition = {
   handler: async input => `${(input as { term: string }).term}: a sample definition`,
 };
 
-export async function boot(options: { script?: Script; host?: Host; tools?: readonly ToolDefinition[]; store?: string; model?: ModelAccess; models?: RuntimeOptions["models"]; maxConcurrent?: number } = {}) {
+export async function boot(options: { script?: Script; host?: Host; tools?: readonly ToolDefinition[]; store?: string; model?: ModelAccess; models?: RuntimeOptions["models"]; maxConcurrent?: number; language?: RuntimeOptions["language"]; phrases?: RuntimeOptions["phrases"] } = {}) {
   const app = await loadApp(notesDir);
   const host = (options.host ?? makeHost()) as ReturnType<typeof makeHost>;
-  const runtime = await createRuntime({ host, app, tools: options.tools ?? [lookupTool], store: options.store ?? ":memory:", model: options.model ?? { kind: "fake", script: options.script ?? goodScript }, models: options.models, maxConcurrent: options.maxConcurrent });
+  const runtime = await createRuntime({ host, app, tools: options.tools ?? [lookupTool], store: options.store ?? ":memory:", model: options.model ?? { kind: "fake", script: options.script ?? goodScript }, models: options.models, maxConcurrent: options.maxConcurrent, language: options.language, phrases: options.phrases });
   const wire = mountWire({ host, runtime, basePath: "/agent" });
   const call = async (method: string, route: string, body?: unknown, headers: Record<string, string> = {}) => {
     const response = await wire.fetch(new Request(`http://app.local/agent${route}`, { method, headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }));

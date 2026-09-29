@@ -31,3 +31,13 @@ test("AGENT-10: a host that refuses the usage stops the run before the next mode
   assert.equal(calls, 1, "no second model call after the refusal");
   assert.equal(runtime.store.usageOf(run.id).length, 1, "the refused call is still metered");
 });
+
+test("AGENT-10: a usage row carries the call's cost (0 when the provider gives none)", async t => {
+  const { call, settled, runtime, host } = await boot();
+  t.after(() => runtime.stop());
+  const run = await settled((await call("POST", "/agents/summarise/runs", { inputs: { note: "n" } })).body.id);
+  const rows = runtime.store.usageOf(run.id);
+  assert.ok(rows.length >= 1);
+  for (const row of rows) assert.equal(typeof row.cost, "number");
+  assert.ok(host.usage.every(u => typeof u.cost === "number"), "the host is handed the cost too");
+});

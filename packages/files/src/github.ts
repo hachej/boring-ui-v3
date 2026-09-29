@@ -5,7 +5,8 @@
  * replaced. A pinned ref (a 40-hex commit) is read-only; writes need a branch and `write` enabled.
  * The token is asked of the host for each request and never kept in a field (AGENT-7).
  */
-import { FileProviderError, type Effect, type Entry, type FileAddress, type FileProvider, type FileRef, type ReadOptions, type Receipt, type WriteCondition } from "./index.ts";
+import { FileProviderError } from "./errors.ts";
+import type { Effect, Entry, FileAddress, FileProvider, FileRef, ReadOptions, Receipt, WriteCondition } from "./index.ts";
 import type { ReceiptLog } from "./receipts.ts";
 
 export type GithubProviderOptions = Readonly<{
