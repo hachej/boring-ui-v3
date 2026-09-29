@@ -7,7 +7,22 @@
     "noEmit": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "allowImportingTsExtensions": true,
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "erasableSyntaxOnly": true
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "examples/**/*.ts", "test/**/*.ts"]
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "examples/**/*.ts",
+    "examples/**/*.tsx",
+    "test/**/*.ts"
+  ]
 }

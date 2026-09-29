@@ -1,9 +1,18 @@
 {
   "name": "@boring/agent",
   "version": "0.0.0",
-  "description": "A durable agent loop an application mounts in its own backend: threads, runs, admitted tools, receipts, questions and approvals, over the files contract.",
+  "description": "A standard, app-embeddable agent runtime on Flue: agents, jobs and conversations defined as files, run with receipts, usage metering, validated outputs and repair, exposed over one HTTP wire with a manifest.",
   "type": "module",
   "private": true,
-  "exports": { ".": "./src/index.ts", "./wire": "./src/wire.ts" },
-  "dependencies": { "@boring/files": "*" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts"
+  },
+  "dependencies": {
+    "@boring/files": "*",
+    "@earendil-works/pi-ai": "^0.87.1",
+    "@flue/runtime": "^2.2.1",
+    "hono": "^4.13.10",
+    "valibot": "^1.1.0"
+  }
 }

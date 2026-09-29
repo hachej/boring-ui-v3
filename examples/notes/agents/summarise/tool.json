@@ -1,0 +1,13 @@
+{
+  "name": "summary_save",
+  "description": "Record the summary of the note.",
+  "input": {
+    "type": "object",
+    "properties": {
+      "title": { "type": "string" },
+      "summary": { "type": "string" },
+      "tags": { "type": "array", "items": { "type": "string" } }
+    },
+    "required": ["title", "summary", "tags"]
+  }
+}

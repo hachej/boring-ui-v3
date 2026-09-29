@@ -4,9 +4,19 @@
     "AGENT-1": {
       "verifiers": [
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/durability.test.ts"
+          ],
+          "claim": "A run is recorded before it starts and takes one terminal transition; on restart an open run is failed from SQLite with an explicit reason and nothing is re-executed."
+        },
+        {
           "kind": "pending",
-          "claim": "A run interrupted by a process exit is resumed or failed from SQLite and no receipted effect is repeated.",
-          "reason": "arrives with the runtime: node --test test/agent/durability.test.ts"
+          "claim": "A run interrupted mid-effect resumes against recorded inputs instead of failing.",
+          "reason": "resumption needs the lease and receipt-replay protocol of SPEC \u00a74: node --test test/agent/resume.test.ts"
         }
       ]
     },
@@ -18,27 +28,47 @@
           "claim": "Start, admission, observation, a concurrent human write, revocation, cancellation and commit interleave freely; a receipt never arises from stale, revoked or stopped work."
         },
         {
-          "kind": "pending",
-          "claim": "A mutating tool with a forged actor, thread or scope in its arguments is refused before the handler runs.",
-          "reason": "arrives with the runtime: node --test test/agent/admission.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/admission.test.ts"
+          ],
+          "claim": "A tool's arguments naming another actor, thread or run change nothing: the effect is issued by the loop; a mutating tool runs only while the host says the run is active, and a refusal leaves a refused receipt."
         }
       ]
     },
     "AGENT-3": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "The tool set offered to the model equals declared tools intersected with host-allowed tools, and changes only when either changes.",
-          "reason": "arrives with the runtime: node --test test/agent/tools.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/tools.test.ts"
+          ],
+          "claim": "The tool set offered to the model equals declared helper tools intersected with host-allowed tools, changes when either changes, and a declared tool without a handler is refused at load."
         }
       ]
     },
     "AGENT-4": {
       "verifiers": [
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/attribution.test.ts"
+          ],
+          "claim": "Each tool call leaves a receipt with actor, thread, run, tool and the revisions it produced; a transcript claiming more calls changes nothing."
+        },
+        {
           "kind": "pending",
-          "claim": "Each tool effect appears in the receipt log with actor, thread, run, tool and revisions, and a run's transcript alone changes nothing.",
-          "reason": "arrives with the runtime: node --test test/agent/attribution.test.ts"
+          "claim": "File revisions before and after land in the receipt through the files contract.",
+          "reason": "arrives with the files providers: node --test test/files/receipts.test.ts"
         }
       ]
     },
@@ -47,7 +77,7 @@
         {
           "kind": "pending",
           "claim": "ask and approval rows accept one answer by compare-and-set from the session's actor; an approval for revision n does not cover n+1.",
-          "reason": "arrives with the runtime: node --test test/agent/decisions.test.ts"
+          "reason": "decisions are not implemented yet: node --test test/agent/decisions.test.ts"
         }
       ]
     },
@@ -59,45 +89,104 @@
           "claim": "No receipt is taken after revocation or cancellation in any interleaving."
         },
         {
-          "kind": "pending",
-          "claim": "Cancelling mid-run stops before the next effect; committed effects remain; a late commit is rejected.",
-          "reason": "arrives with the runtime: node --test test/agent/stop.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/stop.test.ts"
+          ],
+          "claim": "Cancelling mid-run stops before the next effect; committed receipts remain; the late output is not committed; a pending run is cancelled without a model call; a run ends once."
         }
       ]
     },
     "AGENT-7": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "No credential string reaches a definition, a tool result, a thread record or the wire.",
-          "reason": "arrives with the runtime: node --test test/agent/credentials.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/credentials.test.ts"
+          ],
+          "claim": "A provider credential given at mount time appears in no definition, manifest, run record, event or SQLite file."
         }
       ]
     },
     "AGENT-8": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "Every authority decision in the loop is a call into the Host contract; a host that answers no is obeyed at the next operation.",
-          "reason": "arrives with the runtime: node --test test/agent/host.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/host.test.ts",
+            "test/agent/admission.test.ts"
+          ],
+          "claim": "allowedTools, mayRequest and isActive are asked at each operation and a host that answers no is obeyed there; an actor sees only their own threads, runs and jobs."
         }
       ]
     },
     "AGENT-9": {
       "verifiers": [
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/tools.test.ts"
+          ],
+          "claim": "Changing the host's answers for an actor changes the tools offered; the runtime source compares no role string."
+        },
+        {
           "kind": "pending",
-          "claim": "Changing the host's answers for an actor changes the tools, mounts and answer rights the loop offers; the loop contains no role string comparison.",
-          "reason": "arrives with the runtime: node --test test/agent/host.test.ts"
+          "claim": "Mount and answer rights follow the host's answers the same way.",
+          "reason": "mounts need the files providers and answers need decisions: node --test test/agent/host.test.ts (mounts, answers)"
         }
       ]
     },
     "AGENT-10": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "Each model call writes one usage row attributed to actor, thread, run, agent and model, and the host receives it before the next step; a host that refuses stops the run.",
-          "reason": "arrives with the runtime: node --test test/agent/usage.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/usage.test.ts"
+          ],
+          "claim": "Each model response writes one usage row attributed to actor, thread, run, agent and model, the host receives it before the next model call, and a host that refuses stops the run."
+        }
+      ]
+    },
+    "AGENT-11": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/wire.test.ts"
+          ],
+          "claim": "The same key with the same request returns the recorded run; the same key with another request is a conflict; keys are scoped to the actor."
+        }
+      ]
+    },
+    "AGENT-12": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/wire.test.ts"
+          ],
+          "claim": "A job plans only agents its JOB.md declares; a plan naming another agent is refused before anything is recorded; the parent completes only from completed children."
         }
       ]
     }

@@ -26,6 +26,7 @@ npm run setup:formal      # pinned TLC
 npm run check             # package direction, laws and registries present
 npm run typecheck         # the three public contracts together
 npm run verify            # every registered evidence: tests, TLA+ models; deferrals listed
+node examples/notes/server.mjs   # the sample app on :8787 with a scripted model (OPENROUTER_API_KEY for a real one)
 node bin/boring.mjs --help
 ```
 
@@ -33,7 +34,7 @@ node bin/boring.mjs --help
 
 ## Where this stands
 
-This is the skeleton: contracts, laws, registries, the checker and the two models that describe real races. The code arrives package by package in the order of [the roadmap](docs/architecture/ROADMAP.md). The method comes from [docs/architecture/METHOD.md](docs/architecture/METHOD.md); the reasons for three packages are in [docs/architecture/LIBRARY.md](docs/architecture/LIBRARY.md).
+Contracts, laws, registries, the checker and the two models were the skeleton. `@boring/agent` now exists: definitions as files, the Flue-backed runtime with receipts, metering, validated outputs and repair, the HTTP wire and the manifest, driven end to end by [examples/notes](examples/notes). `@boring/chat` has its client and a minimal `BoringChat`. `@boring/files` is still its contract. The rest arrives in the order of [the roadmap](docs/architecture/ROADMAP.md). The method comes from [docs/architecture/METHOD.md](docs/architecture/METHOD.md); the reasons for three packages are in [docs/architecture/LIBRARY.md](docs/architecture/LIBRARY.md).
 
 ## History
 

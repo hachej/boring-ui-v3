@@ -1,9 +1,62 @@
 {
   "version": 1,
   "invariants": {
-    "CHAT-1": { "verifiers": [ { "kind": "pending", "claim": "After reload the rendered transcript equals the one before, rebuilt from the wire alone.", "reason": "arrives with the component and the dev host: node bin/boring.mjs smoke" } ] },
-    "CHAT-2": { "verifiers": [ { "kind": "pending", "claim": "The component renders and works with only endpoint and session props, in a bare page with no layout of the library.", "reason": "arrives with the component: node --test test/chat/placement.test.tsx" } ] },
-    "CHAT-3": { "verifiers": [ { "kind": "pending", "claim": "An unregistered command or an argument outside its schema is refused in the bridge before reaching the page.", "reason": "arrives with the bridge: node --test test/chat/bridge.test.ts" } ] },
-    "CHAT-4": { "verifiers": [ { "kind": "pending", "claim": "An answer posted without the session's actor, or for another actor's question, is rejected by the agent endpoint.", "reason": "arrives with the runtime endpoint: node --test test/agent/decisions.test.ts" } ] }
+    "CHAT-1": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/chat/client.test.ts"
+          ],
+          "claim": "The client replays a thread by cursor and a second replay yields the same events; the component reduces events into what it shows and keeps nothing else."
+        },
+        {
+          "kind": "pending",
+          "claim": "After a page reload the rendered transcript equals the one before.",
+          "reason": "needs a browser smoke over the example page: node bin/boring.mjs smoke"
+        }
+      ]
+    },
+    "CHAT-2": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "The component renders and works with only endpoint, conversation and session props, in a bare page with no layout of the library.",
+          "reason": "needs a DOM: node --test test/chat/placement.test.tsx (jsdom or Playwright); the example page under examples/notes/web builds with Vite today"
+        }
+      ]
+    },
+    "CHAT-3": {
+      "verifiers": [
+        {
+          "kind": "pending",
+          "claim": "An unregistered command or an argument outside its schema is refused in the bridge before reaching the page.",
+          "reason": "arrives with the bridge: node --test test/chat/bridge.test.ts"
+        }
+      ]
+    },
+    "CHAT-4": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/host.test.ts",
+            "test/agent/wire.test.ts"
+          ],
+          "claim": "The wire takes the actor from Host.resolveActor only; a body or another actor's session reaches nobody else's thread, run or job."
+        },
+        {
+          "kind": "pending",
+          "claim": "An answer posted without the session's actor, or for another actor's question, is rejected.",
+          "reason": "decisions are not implemented yet: node --test test/agent/decisions.test.ts"
+        }
+      ]
+    }
   }
 }
