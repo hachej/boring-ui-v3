@@ -61,6 +61,16 @@
           "claim": "A chat client reconnecting rebuilds the same transcript from the wire's cursor replay alone."
         },
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example, the chat page rebuilds the same transcript after a reload, and the runs and thread replay unchanged after a restart of the app with its data kept: nothing shown was held by the page."
+        },
+        {
           "kind": "pending",
           "claim": "The tree does the same from file records.",
           "reason": "arrives with the files package: node bin/boring.mjs smoke"
@@ -85,7 +95,16 @@
             "run",
             "test:formal"
           ],
-          "claim": "Each bounded model detects its own removed guard; a syntax error is not a passing negative test; missing TLC fails."
+          "claim": "Each of the four bounded models detects a removed guard per invariant (one mutant each); a syntax error is not a passing negative test; missing TLC fails."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--test",
+            "test/architecture/lint.test.mjs"
+          ],
+          "claim": "The lint configuration refuses an import against the package direction (chat importing Flue, Node or the agent runtime; agent importing chat; files importing the repository or a runtime) and accepts the allowed edges."
         }
       ]
     },
@@ -98,6 +117,15 @@
             "tools/check.mjs"
           ],
           "claim": "Package imports follow the declared direction, including type-only edges and computed loading."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "lint"
+          ],
+          "claim": "oxlint enforces the same direction at every import site with a message naming the law; the correctness category is clean."
         },
         {
           "kind": "command",

@@ -14,6 +14,16 @@
           "claim": "A run is recorded before it starts and takes one terminal transition; on restart an open run is failed from SQLite with an explicit reason and nothing is re-executed."
         },
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example: a run ended once is not cancellable (409), and after the app restarts with its data every run keeps its status and every thread replays unchanged."
+        },
+        {
           "kind": "pending",
           "claim": "A run interrupted mid-effect resumes against recorded inputs instead of failing.",
           "reason": "resumption needs the lease and receipt-replay protocol of SPEC \u00a74: node --test test/agent/resume.test.ts"
@@ -64,6 +74,16 @@
             "test/agent/attribution.test.ts"
           ],
           "claim": "Each tool call leaves a receipt with actor, thread, run, tool and the revisions it produced; a transcript claiming more calls changes nothing."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example: the summariser's lookup call leaves a receipt with actor, thread, run and tool, readable in the records the runtime keeps."
         },
         {
           "kind": "pending",
@@ -159,11 +179,26 @@
             "test/agent/usage.test.ts"
           ],
           "claim": "Each model response writes one usage row attributed to actor, thread, run, agent and model, the host receives it before the next model call, and a host that refuses stops the run."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example: every completed run has a usage row naming actor, agent and model."
         }
       ]
     },
     "AGENT-11": {
       "verifiers": [
+        {
+          "kind": "model",
+          "model": "agent-idempotency",
+          "claim": "Three concurrent submissions over one key and two bodies, with a restart while in flight: same key and body always name one run, another body is refused, and a key creates at most one run."
+        },
         {
           "kind": "command",
           "command": [
@@ -173,11 +208,26 @@
             "test/agent/wire.test.ts"
           ],
           "claim": "The same key with the same request returns the recorded run; the same key with another request is a conflict; keys are scoped to the actor."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example over HTTP: the same key with the same body returns the recorded run, another body is 409."
         }
       ]
     },
     "AGENT-12": {
       "verifiers": [
+        {
+          "kind": "model",
+          "model": "agent-composition",
+          "claim": "Two child slots over declared and undeclared agents: an undeclared plan is refused before any child is recorded, children are recorded from the frozen plan only, a child runs only under its running parent, the parent completes only from completed children, a terminal parent leaves no open child, and a child's terminal status is never rewritten."
+        },
         {
           "kind": "command",
           "command": [
@@ -187,6 +237,16 @@
             "test/agent/wire.test.ts"
           ],
           "claim": "A job plans only agents its JOB.md declares; a plan naming another agent is refused before anything is recorded; the parent completes only from completed children."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example: the digest job starts one summarise child per note, completes only when both completed, and an empty plan is 400."
         }
       ]
     }

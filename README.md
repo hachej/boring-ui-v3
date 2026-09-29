@@ -12,7 +12,7 @@ A library for putting an agent next to an application. The application keeps its
 
 ## What makes it different from a raw agent framework
 
-The loop is what any framework gives you. The library is what an application needs around it: model output is never authority, every effect is attributed and revision-checked, human decisions are rows the model cannot fake, roles and budgets stay the application's, and `boring env up` runs your app with a scripted model and reads the receipts to prove it.
+The loop is what any framework gives you. The library is what an application needs around it: model output is never authority, every effect is attributed and revision-checked, human decisions are rows the model cannot fake, roles and budgets stay the application's, and `boring env up` runs the example app with a scripted model so a change is proved by driving it and reading the receipts.
 
 ## Laws and evidence
 
@@ -22,15 +22,19 @@ Each package owns its laws in `INVARIANTS.md` and the evidence for them in `VERI
 
 ```bash
 npm ci --ignore-scripts
-npm run setup:formal      # pinned TLC
+npm run setup:formal      # pinned TLC (needs Java 17)
 npm run check             # package direction, laws and registries present
-npm run typecheck         # the three public contracts together
-npm run verify            # every registered evidence: tests, TLA+ models; deferrals listed
-node examples/notes/server.mjs   # the sample app on :8787 with a scripted model (OPENROUTER_API_KEY for a real one)
+npm run lint              # oxlint: correctness and the import direction, then check
+npm run typecheck         # the three public contracts and the example together
+npm test                  # the node tests
+npm run test:formal       # the four bounded models and their mutants
+npm run smoke             # the CI journey on a throwaway copy of the example (needs Chromium)
+npm run verify            # every registered evidence: tests, models, smoke; deferrals listed
+node bin/boring.mjs env up --seed asked   # an isolated copy of examples/notes to drive (see the skill)
 node bin/boring.mjs --help
 ```
 
-`verify` needs Node 22 and Java 17+. CI runs the same gate on every push.
+`verify` needs Node 22, Java 17+ and Chromium (`npx playwright-core install chromium`). CI runs the same gate on every push. To verify a change by running it, read [.agent/skills/verify-boring/SKILL.md](.agent/skills/verify-boring/SKILL.md): `boring env up`, `doctor`, the controls, the feature map. Every law id is indexed in [docs/LAWS.md](docs/LAWS.md) with its owner, its evidence and its mapping to the hub's nouns.
 
 ## Where this stands
 

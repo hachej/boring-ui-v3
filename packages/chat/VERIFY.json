@@ -14,18 +14,28 @@
           "claim": "The client replays a thread by cursor and a second replay yields the same events; the component reduces events into what it shows and keeps nothing else."
         },
         {
-          "kind": "pending",
-          "claim": "After a page reload the rendered transcript equals the one before.",
-          "reason": "needs a browser smoke over the example page: node bin/boring.mjs smoke"
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "In a real browser on the example page: after a reload the rendered transcript equals the one before, rebuilt from the thread's events; the page keeps only the thread id."
         }
       ]
     },
     "CHAT-2": {
       "verifiers": [
         {
-          "kind": "pending",
-          "claim": "The component renders and works with only endpoint, conversation and session props, in a bare page with no layout of the library.",
-          "reason": "needs a DOM: node --test test/chat/placement.test.tsx (jsdom or Playwright); the example page under examples/notes/web builds with Vite today"
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "The component renders and works in the example's bare page with only endpoint, conversation, inputs and thread props: a person types, sends, and the agent's reply appears."
         }
       ]
     },
@@ -50,6 +60,16 @@
             "test/agent/wire.test.ts"
           ],
           "claim": "The wire takes the actor from Host.resolveActor only; a body or another actor's session reaches nobody else's thread, run or job."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "bin/boring.mjs",
+            "smoke"
+          ],
+          "timeout": 600,
+          "claim": "On the running example over HTTP: another actor's session gets 404 for this actor's thread and run."
         },
         {
           "kind": "pending",
