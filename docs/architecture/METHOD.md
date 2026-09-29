@@ -17,6 +17,6 @@ The canonical evidence rule is [BORING-5](../../INVARIANTS.md#boring-5--evidence
 
 ## Influences
 
-Lauren Tan's Dune examples and the Poteto workflow motivated obvious ownership, enforced boundaries and moving recurring review corrections into durable checks. [Source material](../sources/poteto/README.md) records that influence; it does not supply the platform's vocabulary.
+Lauren Tan's Dune examples and the Poteto workflow motivated obvious ownership, enforced boundaries and moving recurring review corrections into durable checks. The talk (Lauren Tan, @poteto, on cursor-compile and verification skills) is credited here; its transcript is kept privately with the hub's sources, and the pattern is public in [poteto/verification-skill-example](https://github.com/poteto/verification-skill-example). That records the influence; it does not supply the platform's vocabulary.
 
 [The library's design](LIBRARY.md) applies this method; an application's own rationale lives in that application. Executable contracts and laws live under `packages/`.

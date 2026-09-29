@@ -1,8 +1,0 @@
-{"plugins": [],
- "options": {},
- "name": "platform.jobs.Job",
- "isModule": false,
- "importArts":
- {"platform.formal.Boring":
-  ["/home/ubuntu/projects/boring-ui-v3/.lake/build/lib/lean/platform/formal/Boring.olean"]},
- "dynlibs": []}
