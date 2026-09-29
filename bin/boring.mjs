@@ -21,20 +21,22 @@ Structure and evidence
   check                              package direction, laws and registries present
   lint                               oxlint (correctness and the import direction) then check
   typecheck                          the three public contracts and the example together (tsc)
-  test [files...]                    the node tests (test/agent, test/chat, test/architecture by default)
+  test [files...]                    the node tests (test/agent, test/chat, test/viewers, test/architecture by default)
   model <name>                       one bounded TLA+ model: ${Object.keys(toolchain.models).join(" | ")}
   verify [all|boring|files|agent|chat]   every registered evidence; deferrals listed, never counted as passing
   laws                               every law id with its owner and evidence (docs/LAWS.md)
   features                           the feature map index (what to drive, how a person reaches it)
+  registry build|check|install [items...] [--into dir]   the shadcn registry: build public/r, check it is current, shadcn add items (default all) into examples/registry-host or any app, from a local build
 
-Environment (one isolated copy of examples/notes per checkout: derived ports, own data dir, own headless browser)
+Environment (one isolated copy of an example per checkout, examples/notes by default: derived ports, own data dir, own headless browser)
   doctor                             toolchain, and whether the running instance is ours, answering and not STALE
-  env up [--seed name] [--model fake|openrouter|openrouter/<provider>/<model>] [--keep-data] [--restart] [--no-browser]
+  env up [--example notes|registry-host] [--seed name] [--model fake|openrouter|openrouter/<provider>/<model>] [--keep-data] [--restart] [--no-browser]
   env info | env seeds | env down [--clean]
 
 Act and inspect (on the environment; the wire is the app's /agent mount, identity is the app's dev auth)
   manifest                           GET /.well-known/boring.json
   send "<text>" [--wait] [--new]     a message in the conversation; the thread continues until --new
+  thread [<id> | --from-page]        continue this thread: the one the page shows (its #thread=) so the page's viewer tools are offered
   wait-settle [--timeout s]          until no run or job is open and the records stopped moving
   chat                               the current thread as the person sees it (replayed from the wire)
   tool <agent> '<json>' [--key k] [--wait]     request one agent's run with these inputs (POST /agents/:agent/runs)
@@ -71,7 +73,7 @@ const sh = (bin, args, extra = {}) => { const r = spawnSync(bin, args, { cwd: ro
 const node = (args) => sh(process.execPath, args);
 const parseJson = text => { if (!text) return {}; try { return JSON.parse(text); } catch { throw new Error(`not JSON: ${text}`); } };
 
-const controlled = ["doctor", "env", "manifest", "send", "wait-settle", "chat", "tool", "job", "cancel", "runs", "run", "trace", "state", "log", "screenshot", "snapshot", "click", "type", "press", "wait-for", "eval", "reload", "goto"];
+const controlled = ["thread", "doctor", "env", "manifest", "send", "wait-settle", "chat", "tool", "job", "cancel", "runs", "run", "trace", "state", "log", "screenshot", "snapshot", "click", "type", "press", "wait-for", "eval", "reload", "goto"];
 try {
   const c = controlled.includes(command) ? await import("../tools/control.mjs") : null;
   const env = () => c.requireEnv();
@@ -93,11 +95,20 @@ try {
       console.log("lint: oxlint clean, import direction and registries checked");
       break;
     }
-    case "typecheck": process.exitCode = node([require.resolve("typescript/bin/tsc"), "-p", "tsconfig.json"]); break;
-    case "test": process.exitCode = node(["--disable-warning=ExperimentalWarning", "--test", ...(opts._.length ? opts._ : ["test/agent/*.test.ts", "test/chat/*.test.ts", "test/architecture/*.test.mjs"])]); break;
+    case "typecheck": process.exitCode = node([require.resolve("typescript/bin/tsc"), "-p", "tsconfig.json"]) || node([require.resolve("typescript/bin/tsc"), "-p", "examples/registry-host/tsconfig.json"]); break;
+    case "test": process.exitCode = node(["--disable-warning=ExperimentalWarning", "--test", ...(opts._.length ? opts._ : ["test/agent/*.test.ts", "test/chat/*.test.ts", "test/viewers/*.test.ts", "test/architecture/*.test.mjs"])]); break;
     case "verify": if (!verify(opts._[0] ?? "all")) process.exitCode = 1; break;
     case "model": { const result = runModel(opts._[0]); process.stdout.write(result.output); if (result.status !== 0) process.exitCode = 1; break; }
     case "laws": process.stdout.write(readFileSync(path.join(root, "docs/LAWS.md"), "utf8")); break;
+    case "registry": {
+      const r = await import("../tools/registry.mjs");
+      const sub = opts._[0] ?? "build";
+      if (sub === "build") print(r.build(opts.out ? { out: path.resolve(opts.out) } : {}), x => `built ${x.items.length} files into ${path.relative(root, x.out)}`);
+      else if (sub === "check") { const x = r.check(); print(x, y => y.ok ? "public/r is current" : `public/r is stale: ${y.stale.join(", ")} (run boring registry build)`); if (!x.ok) process.exitCode = 1; }
+      else if (sub === "install") print(await r.install({ names: opts._.length > 1 ? opts._.slice(1) : undefined, ...(opts.into ? { cwd: path.resolve(opts.into) } : {}), log: m => { if (!opts.json) console.log(m); } }), x => `installed ${x.added.join(", ")} into ${path.relative(root, x.cwd) || "."} from ${x.from}`);
+      else throw new Error(`unknown registry command ${sub}: build | check | install`);
+      break;
+    }
     case "features": process.stdout.write(readFileSync(path.join(root, ".agent/skills/verify-boring/features/README.md"), "utf8")); break;
     case "doctor": {
       const rows = await c.doctor(opts);
@@ -118,6 +129,7 @@ try {
       print(await maybeWait({ thread: r.thread, run: r.run.id, status: r.run.status }), x => `thread ${x.thread}\nrun ${x.run} ${x.status}${x.settled ? `\nsettled; reply: ${x.settled.reply}` : ""}`);
       break;
     }
+    case "thread": print(await c.adoptThread(env(), opts._[0]), x => `thread ${x.thread}`); break;
     case "wait-settle": print(await c.waitSettle(env(), opts), s => `settled at cursor ${s.cursor}; runs ${JSON.stringify(s.runs)}; jobs ${JSON.stringify(s.jobs)}${s.latest ? `\nlatest run ${s.latest.id.slice(0, 8)} ${s.latest.agent} ${s.latest.status}${s.latest.error ? `: ${s.latest.error}` : ""}` : ""}${s.reply ? `\nreply: ${s.reply}` : ""}`); break;
     case "chat": print(await c.chat(env()), x => x.thread ? `thread ${x.thread}\n${c.renderEvents(x.events)}` : "no thread yet: boring send \"...\""); break;
     case "tool": { const r = await c.startRun(env(), opts._[0], parseJson(opts._[1]), { key: opts.key, thread: opts.thread }); print(await maybeWait(r)); break; }

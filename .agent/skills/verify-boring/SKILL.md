@@ -9,12 +9,13 @@ Run the example app, put it in the state the change needs, drive the feature the
 
 ## Launch
 
-One environment per checkout: ports and the data dir are derived from the checkout path, so parallel checkouts never collide. The app is `examples/notes` (two agents, one job, one conversation) with the fake model unless you ask for a real one.
+One environment per checkout: ports and the data dir are derived from the checkout path, so parallel checkouts never collide. The app is `examples/notes` (two agents, one job, one conversation) with the fake model unless you ask for a real one; `--example registry-host` runs the application built from the shadcn registry (tree, markdown editor, image viewer, chat) with a scripted assistant that drives the viewers' tools.
 
 ```bash
 node bin/boring.mjs env up --seed asked            # fake model, fresh data, chat page built, headless browser
 node bin/boring.mjs env up --seed digested --model openrouter/openai/gpt-4o-mini   # a real model (OPENROUTER_API_KEY)
 node bin/boring.mjs env seeds | env info
+node bin/boring.mjs env up --example registry-host        # the registry host; then `thread --from-page` before `send`
 ```
 
 `--restart` replaces a running environment; `--keep-data` keeps its records across the restart; `--no-browser` skips Chromium. Seeds go in through the wire, the same calls a client makes: `empty`, `asked`, `conversation`, `summarised`, `digested`.
@@ -46,6 +47,7 @@ node bin/boring.mjs wait-for "[data-boring-chat] li[data-role=agent]" && node bi
 node bin/boring.mjs snapshot "[data-boring-chat]" && node bin/boring.mjs screenshot .cache/evidence/<time>/page.png
 node bin/boring.mjs reload                                     # the thread id is in the URL hash; the transcript rebuilds
 node bin/boring.mjs goto "/#thread=<id>"                       # open a known thread in the tab
+node bin/boring.mjs thread --from-page                         # send continues the page's thread (where the page registered its tools)
 ```
 
 Do not write one-off scripts. If a step you need is missing, add it to `tools/control.mjs`, to `bin/boring.mjs --help` and to this skill in the same change.
@@ -63,7 +65,7 @@ Do not write one-off scripts. If a step you need is missing, add it to `tools/co
 
 ```text
 boring check / lint / typecheck      package direction, laws and registries, types
-boring test                          the node tests (test/agent, test/chat, test/architecture)
+boring test                          the node tests (test/agent, test/chat, test/viewers, test/architecture)
 boring env … (this skill)            the real user and client path
 boring model / test:formal / verify  bounded models with mutants, the full evidence registry
 human/domain acceptance              where required (a real model's output)

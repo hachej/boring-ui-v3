@@ -64,9 +64,14 @@
           "claim": "One conformance suite passes against the memory, directory and GitHub providers; a provider that cannot honour a condition refuses instead of degrading."
         },
         {
-          "kind": "pending",
-          "claim": "The same suite passes against the HTTP file routes.",
-          "reason": "the file routes are not built: node --test test/files/routes.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/routes.test.ts"
+          ],
+          "claim": "The same suite passes against the HTTP file routes through their client; the session, never the request body, names the receipt's actor; a transport failure is unverified, never success."
         }
       ]
     },
@@ -93,9 +98,15 @@
           "claim": "On the running example, the chat page rebuilds the same transcript after a reload, and the runs and thread replay unchanged after a restart of the app with its data kept: nothing shown was held by the page."
         },
         {
-          "kind": "pending",
-          "claim": "The tree does the same from file records.",
-          "reason": "arrives with the files package: node bin/boring.mjs smoke"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/file-tree.test.ts",
+            "test/registry/round-trip.test.ts"
+          ],
+          "claim": "The tree holds only projections of list: a refresh rebuilds it from the provider, so a file the agent wrote appears at the revision its receipt names and nothing the tree showed before survives on its own."
         }
       ]
     },

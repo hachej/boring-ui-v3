@@ -24,5 +24,8 @@
     "examples/**/*.ts",
     "examples/**/*.tsx",
     "test/**/*.ts"
+  ],
+  "exclude": [
+    "examples/registry-host"
   ]
 }
