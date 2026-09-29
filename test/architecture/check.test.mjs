@@ -60,10 +60,10 @@ test("chat may import only types from agent", async t => {
 
 test("undeclared externals, computed loading and consumers are rejected", async t => {
   const dir = fixture(t);
-  source(dir, "packages/files/src/probe.ts", 'import fs from "node:fs"; import(variable); import { t } from "../../../test/helper.js";');
+  source(dir, "packages/files/src/probe.ts", 'import http from "node:http"; import(variable); import { t } from "../../../test/helper.js";');
   source(dir, "test/helper.ts", "export const t = 1;");
   const errors = await errorsOf(dir);
-  assert.match(errors, /undeclared external dependency node:fs/);
+  assert.match(errors, /undeclared external dependency node:http/);
   assert.match(errors, /computed module loading/);
   assert.match(errors, /cannot import a consumer/);
 });

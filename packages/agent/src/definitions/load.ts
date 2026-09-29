@@ -2,8 +2,10 @@
  * Loaders for the standard definition files an application ships:
  *
  *   agents/<name>/agent.md        front matter (name, title, model, effort, max_tokens, output,
- *                                 helper_tools, inputs, outputs) + system prompt; `inputs:` lines are
- *                                 `name: description` or `name: { type, description, required, enum }`
+ *                                 helper_tools, files, ui, inputs, outputs) + system prompt; `inputs:` lines are
+ *                                 `name: description` or `name: { type, description, required, enum }`;
+ *                                 `files: [read, write]` needs every mount, `files:` with `<mount>: read` lines
+ *                                 needs those mounts; `ui: [name, ...]` names page commands it may request
  *   agents/<name>/tool.json       the output tool (name, description, input schema) when output: tool
  *   agents/<name>/rules.md        editable defaults handed to buildMessage as `rules`
  *   agents/<name>/index.mjs       buildMessage(input) → string, validate(output) → output, asText(output) → string,
@@ -21,8 +23,31 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { DefinitionError, field, inputSchema, parseFrontMatter } from "./front-matter.ts";
 import type { AgentDefinition, AppRegistry, ConversationDefinition, JobDefinition, OutputTool } from "../index.ts";
+import { isMountName } from "@boring/files";
+import type { FileNeed } from "../runtime/files.ts";
 
 const NAME = /^[a-z][a-z0-9-]*$/;
+const TOOL_NAME = /^[a-z][a-z0-9_-]*$/;
+const MODES = ["read", "write"] as const;
+
+/** `files: [read, write]` → every mount; `files:` block of `<mount>: read | [read, write]` → those mounts. */
+function fileNeeds(meta: Parameters<typeof field>[0], file: string): readonly FileNeed[] {
+  const value = meta.files;
+  if (value === undefined || value === "") return [];
+  const modes = (raw: unknown, at: string): readonly ("read" | "write")[] => {
+    const list = Array.isArray(raw) ? raw : [raw];
+    for (const mode of list) if (!(MODES as readonly unknown[]).includes(mode)) throw new DefinitionError(file, `${at} must be read, write or [read, write] (got "${String(mode)}")`);
+    return list as ("read" | "write")[];
+  };
+  if (Array.isArray(value)) return modes(value, '"files"').map(mode => ({ mount: "*", mode }));
+  if (typeof value !== "object") throw new DefinitionError(file, `"files" must be [read], [read, write] or a block of <mount>: mode lines`);
+  const needs: FileNeed[] = [];
+  for (const [mount, raw] of Object.entries(value)) {
+    if (!isMountName(mount)) throw new DefinitionError(file, `"files.${mount}": not a mount name (code, workspace, shared or mnt/<name>)`);
+    for (const mode of modes(raw, `"files.${mount}"`)) needs.push({ mount, mode });
+  }
+  return needs;
+}
 const EFFORTS = ["minimal", "low", "medium", "high", "xhigh"] as const;
 
 function requireName(meta: Parameters<typeof field>[0], file: string, expected: string): string {
@@ -64,7 +89,10 @@ export async function loadAgentDefinition(dir: string): Promise<AgentDefinition>
   if (effort !== undefined && !(EFFORTS as readonly string[]).includes(effort)) throw new DefinitionError(file, `"effort" must be one of ${EFFORTS.join(", ")} (got "${effort}")`);
   const maxTokens = field(meta, file, "max_tokens", "number") ?? 8000;
   const helperTools = field(meta, file, "helper_tools", "list") ?? [];
-  for (const tool of helperTools) if (!NAME.test(tool)) throw new DefinitionError(file, `"helper_tools" entry "${tool}" must match ${NAME}`);
+  for (const tool of helperTools) if (!TOOL_NAME.test(tool)) throw new DefinitionError(file, `"helper_tools" entry "${tool}" must match ${TOOL_NAME}`);
+  const files = fileNeeds(meta, file);
+  const uiCommands = field(meta, file, "ui", "list") ?? [];
+  for (const command of uiCommands) if (!TOOL_NAME.test(command)) throw new DefinitionError(file, `"ui" entry "${command}" must match ${TOOL_NAME}`);
   const inputs = inputSchema(meta, file);
   const outputs = field(meta, file, "outputs", "map") ?? {};
   const description = field(meta, file, "description", "string");
@@ -76,7 +104,7 @@ export async function loadAgentDefinition(dir: string): Promise<AgentDefinition>
   for (const fn of ["buildMessage", "validate", "asText"]) if (typeof module[fn] !== "function") throw new DefinitionError(join(dir, "index.mjs"), `must export a function "${fn}"`);
   if (module.tools !== undefined && typeof module.tools !== "function") throw new DefinitionError(join(dir, "index.mjs"), `"tools" must be a function when exported`);
   return {
-    kind: "agent", name, title, description, model, effort: effort as AgentDefinition["effort"], maxTokens, output, tool, rules, system: body, helperTools, inputs, outputs, dir,
+    kind: "agent", name, title, description, model, effort: effort as AgentDefinition["effort"], maxTokens, output, tool, rules, system: body, helperTools, files, uiCommands, inputs, outputs, dir,
     buildMessage: module.buildMessage as AgentDefinition["buildMessage"],
     validate: module.validate as AgentDefinition["validate"],
     asText: module.asText as AgentDefinition["asText"],

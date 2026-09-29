@@ -7,7 +7,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import type { Event, JobView, Message, RunView } from "../wire.ts";
+import type { Event, JobView, Message, RunView, UiRequestView, UiResult, UiTarget } from "../wire.ts";
 import type { RunStatus, Usage } from "../index.ts";
 
 export type ThreadRecord = Readonly<{ id: string; actor: string; createdAt: string }>;
@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS usage(id TEXT PRIMARY KEY, actor TEXT NOT NULL, threa
 CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY, actor TEXT NOT NULL, thread TEXT NOT NULL, run TEXT NOT NULL, tool TEXT NOT NULL, input_hash TEXT NOT NULL,
   ok INTEGER NOT NULL, revisions TEXT, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS idempotency(actor TEXT NOT NULL, key TEXT NOT NULL, request_hash TEXT NOT NULL, target TEXT NOT NULL, PRIMARY KEY(actor, key));
+CREATE TABLE IF NOT EXISTS ui_requests(id TEXT PRIMARY KEY, run TEXT NOT NULL, thread TEXT NOT NULL, page TEXT NOT NULL, command TEXT NOT NULL, input TEXT NOT NULL,
+  target TEXT, state TEXT NOT NULL, result TEXT, at TEXT NOT NULL, answered_at TEXT);
 `;
 
 const TERMINAL: readonly RunStatus[] = ["completed", "failed", "cancelled"];
@@ -206,6 +208,40 @@ export class Store {
       input: Number(row.input), output: Number(row.output), cached: Number(row.cached), at: row.at as string,
     }));
   }
+  // UI requests (CHAT-3, UI-BOUNDARY-4/5): a request to the bound page is a record; it is answered once by compare-and-set.
+  private uiOf(row: Row): UiRequestView {
+    return { id: row.id as string, run: row.run as string, thread: row.thread as string, page: row.page as string, command: row.command as string, input: parse(row.input),
+      ...(row.target ? { target: parse(row.target) as UiTarget } : {}), state: row.state as UiRequestView["state"], ...(row.result ? { result: parse(row.result) as UiResult } : {}),
+      at: row.at as string, ...(row.answered_at ? { answeredAt: row.answered_at as string } : {}) };
+  }
+  createUiRequest(fields: { run: string; thread: string; page: string; command: string; input: unknown; target?: UiTarget }): UiRequestView {
+    const id = randomUUID();
+    this.db.prepare("INSERT INTO ui_requests(id, run, thread, page, command, input, target, state, at) VALUES(?,?,?,?,?,?,?,?,?)")
+      .run(id, fields.run, fields.thread, fields.page, fields.command, json(fields.input), fields.target ? json(fields.target) : null, "requested", now());
+    const view = this.uiRequest(id)!;
+    this.emit({ thread: view.thread, run: view.run, kind: "ui", payload: { ui: view } });
+    return view;
+  }
+  uiRequest(id: string): UiRequestView | null {
+    const row = this.db.prepare("SELECT * FROM ui_requests WHERE id = ?").get(id) as Row | undefined;
+    return row ? this.uiOf(row) : null;
+  }
+  /** requested → answered | expired | unavailable, once. Returns null when the request already left `requested`. */
+  settleUiRequest(id: string, end: { state: "answered" | "expired" | "unavailable"; result?: UiResult }): UiRequestView | null {
+    const changed = this.db.prepare("UPDATE ui_requests SET state = ?, result = ?, answered_at = ? WHERE id = ? AND state = 'requested'")
+      .run(end.state, end.result ? json(end.result) : null, now(), id).changes > 0;
+    if (!changed) return null;
+    const view = this.uiRequest(id)!;
+    this.emit({ thread: view.thread, run: view.run, kind: "ui", payload: { ui: view } });
+    return view;
+  }
+  openUiRequests(scope: { page?: string; run?: string }): readonly UiRequestView[] {
+    const rows = scope.page
+      ? this.db.prepare("SELECT * FROM ui_requests WHERE page = ? AND state = 'requested'").all(scope.page)
+      : this.db.prepare("SELECT * FROM ui_requests WHERE run = ? AND state = 'requested'").all(scope.run!);
+    return (rows as Row[]).map(row => this.uiOf(row));
+  }
+
   addReceipt(receipt: Omit<ReceiptRow, "id" | "at">): ReceiptRow {
     const full = { id: randomUUID(), at: now(), ...receipt };
     this.db.prepare("INSERT INTO receipts(id, actor, thread, run, tool, input_hash, ok, revisions, at) VALUES(?,?,?,?,?,?,?,?,?)")

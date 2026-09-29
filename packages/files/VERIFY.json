@@ -1,16 +1,131 @@
 {
   "version": 1,
   "invariants": {
-    "FILES-1": { "verifiers": [ { "kind": "pending", "claim": "stat and read return the revision the content came from; identities differ across mounts and providers.", "reason": "arrives with the first provider: node --test test/files/conformance.test.ts" } ] },
-    "FILES-2": { "verifiers": [
-      { "kind": "model", "model": "files-commit", "claim": "Two writers over four revisions: no commit succeeds on a stale observed revision, whatever the interleaving." },
-      { "kind": "pending", "claim": "A stale expectedRevision returns a conflict and leaves content and receipts untouched, on every provider.", "reason": "arrives with the first provider: node --test test/files/conformance.test.ts" }
-    ] },
-    "FILES-3": { "verifiers": [ { "kind": "pending", "claim": "create on an existing address and update on a missing one both fail without side effects.", "reason": "arrives with the first provider: node --test test/files/conformance.test.ts" } ] },
-    "FILES-4": { "verifiers": [ { "kind": "pending", "claim": "remove then create yields a revision later than the removed one; the old revision is never current again.", "reason": "arrives with the first provider: node --test test/files/conformance.test.ts" } ] },
-    "FILES-5": { "verifiers": [ { "kind": "pending", "claim": "Traversal, absolute, encoded and symlinked paths are rejected before any provider call, with the same canonical form used for storage.", "reason": "arrives with the address module: node --test test/files/address.test.ts" } ] },
-    "FILES-6": { "verifiers": [ { "kind": "pending", "claim": "A write through the HTTP routes is visible to the agent tool and the tree at the same revision, and vice versa.", "reason": "arrives with the routes and the dev host: node bin/boring.mjs smoke" } ] },
-    "FILES-7": { "verifiers": [ { "kind": "pending", "claim": "Receipt rows and file rows commit in one transaction; a failed write leaves no receipt.", "reason": "arrives with the SQLite provider: node --test test/files/receipts.test.ts" } ] },
-    "FILES-8": { "verifiers": [ { "kind": "pending", "claim": "The remote adapter rejects a conditional write it could not verify at the far side and never reports an unverified success.", "reason": "arrives with the remote adapter: node --test test/files/remote.test.ts" } ] }
+    "FILES-1": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts",
+            "test/files/receipts.test.ts"
+          ],
+          "claim": "stat and read return the revision the content came from on every provider; two providers never issue the same identity for different files."
+        }
+      ]
+    },
+    "FILES-2": {
+      "verifiers": [
+        {
+          "kind": "model",
+          "model": "files-commit",
+          "claim": "Two writers over four revisions: no commit succeeds on a stale observed revision, whatever the interleaving."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts"
+          ],
+          "claim": "A stale expectedRevision returns a conflict naming the current revision and leaves content and receipts untouched, on memory, directory and GitHub providers."
+        }
+      ]
+    },
+    "FILES-3": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts"
+          ],
+          "claim": "create on an existing address and update on a missing one both fail without side effects, on every provider."
+        }
+      ]
+    },
+    "FILES-4": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts"
+          ],
+          "claim": "remove needs the current revision; a recreate with the same content yields a later revision; the removed revision is never current again."
+        }
+      ]
+    },
+    "FILES-5": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/address.test.ts",
+            "test/agent/files.test.ts"
+          ],
+          "claim": "Traversal, absolute, encoded, aliased and symlinked paths are refused before any provider call, with the one canonical spelling used for storage; the router confines an address to a mount in the table; a run's tool argument cannot reach a mount its grants do not cover."
+        }
+      ]
+    },
+    "FILES-6": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "examples/embed-host/test/round-trip.test.ts"
+          ],
+          "claim": "A write made by the agent's tool is read at the same revision by the host through the same provider, and its receipt matches."
+        },
+        {
+          "kind": "pending",
+          "claim": "A write through HTTP file routes and the tree see the same revision.",
+          "reason": "the file routes and the FileTree component are not built: node bin/boring.mjs smoke"
+        }
+      ]
+    },
+    "FILES-7": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts",
+            "test/files/receipts.test.ts"
+          ],
+          "claim": "Every accepted write or removal records one receipt with actor, thread, run, tool and both revisions inside the provider's critical section; a refused or failed one records nothing; concurrent writers at one observed revision yield one receipt."
+        }
+      ]
+    },
+    "FILES-8": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/remote.test.ts",
+            "test/files/receipts.test.ts"
+          ],
+          "claim": "The GitHub provider lets the far side decide conflicts, reports unverified instead of success when the answer carries no commit or the network fails, keeps no credential, and refuses writes on a pinned ref; the readonly wrapper refuses every mutation."
+        }
+      ]
+    }
   }
 }

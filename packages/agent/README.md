@@ -18,7 +18,7 @@ conversations/<name>/CONVERSATION.md   front matter (agent, history) + descripti
 conversations/<name>/index.mjs      optional context(input) → input for the agent
 ```
 
-`agent.md` front matter: `name`, `title`, `model` (provider/model, a default the app may override), `effort`, `max_tokens`, `output: tool | markdown`, `helper_tools: [names]`, an `inputs:` block (`name: description`, or `name: { type, description, required, enum, items, default }`) that becomes the manifest's JSON-schema `inputs`, and an `outputs:` block of `name: description` for markdown agents. A validator throws `OutputError`; its message goes back to the model for a repair (twice by default).
+`agent.md` front matter: `name`, `title`, `model` (provider/model, a default the app may override), `effort`, `max_tokens`, `output: tool | markdown`, `helper_tools: [names]`, `files:` (`[read]`, `[read, write]` for every mount the host offers, or a block of `<mount>: read | [read, write]` lines; the needs become grants admitted per run and offer the file tools `read_file`, `write_file`, `list_files`, `stat`, `remove_file`, which address `/<mount>/<path>`), `ui: [names]` (page commands the agent may request of a page that registered them), an `inputs:` block (`name: description`, or `name: { type, description, required, enum, items, default }`) that becomes the manifest's JSON-schema `inputs`, and an `outputs:` block of `name: description` for markdown agents. A validator throws `OutputError`; its message goes back to the model for a repair (twice by default).
 
 ## Run and expose
 
@@ -40,14 +40,15 @@ const wire = mountWire({ host, runtime, basePath: "/agent" });   // wire.fetch(r
 | `POST /jobs/:job/start` | `{ inputs?, thread?, idempotencyKey? }` → job with its children (202) |
 | `GET /jobs/:id` | The job and its children |
 | `POST /conversations/:conversation/messages` | `{ text, thread?, inputs?, idempotencyKey? }` → `{ thread, run }` (202) |
-| `GET /threads/:id`, `GET /threads/:id/events?cursor=&live=0` | The thread and its replayable events |
+| `POST /threads`, `GET /threads/:id`, `GET /threads/:id/events?cursor=&live=0` | An empty thread; the thread and its replayable events |
+| `PUT/DELETE /threads/:id/ui/:page`, `GET /threads/:id/ui`, `POST /runs/:id/ui/:requestId` | The page-command bridge: a page's commands on a thread, and its one answer per request ([docs/design/ui-bridge.md](../../docs/design/ui-bridge.md)) |
 
-Identity comes from `Host.resolveActor(request)` on every request. Bodies, views, events and status codes are specified once in [CONTRACT.md](CONTRACT.md). Model access (`fake` script, `openrouter` key, `openai-codex` credentials file) is given at mount time and never stored.
+Identity comes from `Host.resolveActor(request)` on every request. `Host.mounts(actor)` returns the mount table (`code`, `workspace`, `shared`, `mnt/<name>` → a `@boring/files` provider); tools reach files only through the run's grants and the router. Bodies, views, events and status codes are specified once in [CONTRACT.md](CONTRACT.md). Model access (`fake` script, `openrouter` key, `openai-codex` credentials file) is given at mount time and never stored.
 
 ## What exists now
 
-Definition loaders with front-matter validation; the Flue-backed runtime (one generic Flue agent per run, output tool validated inside the tool with `terminate`, helper tools, repair loop, `useResponseFinish` metering, durable abort); the SQLite store (threads, runs, jobs, events, usage, receipts, idempotency keys); the Hono wire and the manifest; admission through the Host; interrupted runs failed on restart.
+Definition loaders with front-matter validation (`files:`, `ui:` included); the Flue-backed runtime (one generic Flue agent per run, output tool validated inside the tool with `terminate`, helper tools, file tools over the host's mounts with grants and receipts, page commands as `ui` tools, repair loop, `useResponseFinish` metering, durable abort); the SQLite store (threads, runs, jobs, events, ui requests, usage, receipts, idempotency keys); the Hono wire and the manifest; admission through the Host; interrupted runs failed on restart.
 
 ## Deferred
 
-Ask and approval rows (AGENT-5); resuming an interrupted run against recorded inputs (the lease and receipt-replay protocol); file revisions in receipts and mounts (waits for the `files` providers; `Operations.files` routes to `host.mounts` today); per-model-turn usage rows (one row per Flue response today); Express adapter and the dev host `boring env up` launches.
+Ask and approval rows (AGENT-5); resuming an interrupted run against recorded inputs (the lease and receipt-replay protocol); per-model-turn usage rows (one row per Flue response today); Express adapter and the dev host `boring env up` launches.

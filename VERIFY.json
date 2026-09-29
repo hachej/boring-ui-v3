@@ -14,9 +14,15 @@
           "claim": "A tool handler receives an effect bound to the admitted actor, thread and run; identifiers in the model's arguments grant nothing."
         },
         {
-          "kind": "pending",
-          "claim": "The same holds for text in a file, a record or a page.",
-          "reason": "arrives with the files providers and the chat bridge: node --test test/files/conformance.test.ts test/chat/bridge.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/files.test.ts",
+            "test/chat/bridge.test.ts"
+          ],
+          "claim": "A path in a tool argument reaches only mounts the run's grants cover; a page command's input is checked against its schema and a page cannot answer another page's or actor's request."
         }
       ]
     },
@@ -33,18 +39,34 @@
           "claim": "Every tool call through the runtime lands in the receipt log attributed to actor, thread, run and tool."
         },
         {
-          "kind": "pending",
-          "claim": "File and record mutations commit with their receipt in the same transaction.",
-          "reason": "arrives with the files store: node --test test/files/receipts.test.ts"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/receipts.test.ts",
+            "test/agent/files.test.ts"
+          ],
+          "claim": "File mutations commit with their receipt inside the provider's critical section and the run's receipt row names mount, path and both revisions."
         }
       ]
     },
     "BORING-3": {
       "verifiers": [
         {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/files/conformance.test.ts"
+          ],
+          "claim": "One conformance suite passes against the memory, directory and GitHub providers; a provider that cannot honour a condition refuses instead of degrading."
+        },
+        {
           "kind": "pending",
-          "claim": "One conformance suite passes against every file provider and against the HTTP routes; a provider that cannot honour a condition refuses instead of degrading.",
-          "reason": "arrives with the files package: node --test test/files/conformance.test.ts"
+          "claim": "The same suite passes against the HTTP file routes.",
+          "reason": "the file routes are not built: node --test test/files/routes.test.ts"
         }
       ]
     },

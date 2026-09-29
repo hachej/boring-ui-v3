@@ -19,7 +19,11 @@
     }
   },
   "externalDependencies": {
-    "files": [],
+    "files": [
+      "node:fs",
+      "node:path",
+      "node:crypto"
+    ],
     "agent": [
       "node:fs",
       "node:path",

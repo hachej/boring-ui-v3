@@ -7,18 +7,25 @@
  * `/.well-known/boring.json`. The application keeps its database, its auth and its deploy;
  * the Host contract is the only way authority enters (AGENT-8).
  */
-import type { Effect, FileAddress, FileProvider } from "@boring/files";
+import type { Effect, FileAddress, FileProvider, MountTable } from "@boring/files";
+import type { UiCommandSpec, UiResult, UiTarget } from "./wire.ts";
 
 export { loadApp, loadAgentDefinition, loadJobDefinition, loadConversationDefinition } from "./definitions/load.ts";
 export { DefinitionError, parseFrontMatter, inputSchema, type InputSchema, type InputProperty } from "./definitions/front-matter.ts";
 import type { InputSchema } from "./definitions/front-matter.ts";
+import type { FileNeed } from "./runtime/files.ts";
 export { createRuntime, type Runtime, type StartRunRequest, type StartJobRequest, type ConversationMessageRequest } from "./runtime/runtime.ts";
 export { openStore, type Store, type RunRecord, type JobRecord, type ThreadRecord, type UsageRow, type ReceiptRow } from "./runtime/store.ts";
 export { mountWire, type WireOptions } from "./wire/mount.ts";
 export { manifestOf, type Manifest } from "./wire/manifest.ts";
+export { FILE_TOOLS, fileTools, grantsFor, type FileNeed } from "./runtime/files.ts";
+export type { UiCommandSpec, UiRequestView, UiResult, UiOutcome, UiTarget } from "./wire.ts";
 
-/** Roles are the application's own strings; the library never interprets them (AGENT-9). */
-export type Actor = Readonly<{ id: string; name?: string; roles?: readonly string[] }>;
+/**
+ * Roles are the application's own strings; the library never interprets them (AGENT-9). `scope` carries
+ * whatever the host wants handed back to it with every question (a tenant, a team); opaque here.
+ */
+export type Actor = Readonly<{ id: string; name?: string; roles?: readonly string[]; scope?: Readonly<Record<string, string>> }>;
 
 /** A conversation between one actor and the agent. Durable (AGENT-1). */
 export type Thread = Readonly<{ id: string; actor: string; createdAt: string }>;
@@ -28,10 +35,16 @@ export type RunStatus = "pending" | "running" | "completed" | "failed" | "cancel
 /** One pass of the loop over a thread. Recorded before it starts; ends exactly once (AGENT-1). */
 export type Run = Readonly<{ id: string; thread: string; status: RunStatus; error?: string }>;
 
-/** What a tool handler may touch. Issued by the loop after admission, never a raw provider (AGENT-2). */
+/**
+ * What a tool handler may touch. Issued by the loop after admission, never a raw provider (AGENT-2).
+ * `files` routes `{ mount, path }` addresses to the host's mount table for this actor, confined to the
+ * run's grants: a mount or a mode the grants do not cover is refused before any provider call.
+ */
 export type Operations = Readonly<{
   effect: Effect;
-  files: Pick<FileProvider, "stat" | "read" | "list" | "write" | "remove">;
+  files: FileProvider;
+  /** The mount names this run may address (from its grants), for tools that format `/mount/path`. */
+  mounts: readonly string[];
 }>;
 
 export type ToolDefinition<Input = unknown, Output = unknown> = Readonly<{
@@ -43,7 +56,11 @@ export type ToolDefinition<Input = unknown, Output = unknown> = Readonly<{
   handler: (input: Input, operations: Operations) => Promise<Output>;
 }>;
 
-/** A grant names what a run may touch. Issued per run by the host (AGENT-8). */
+/**
+ * A grant names what a run may touch: one mount, a path prefix ("" for the whole mount) and a mode.
+ * Derived from the definition's `files:` needs against the host's mount table, then admitted by the
+ * host per run through `mayRequest` (AGENT-8). A tool's arguments can never widen one (BORING-1).
+ */
 export type Grant = Readonly<{ mount: string; path: string; mode: "read" | "write" }>;
 
 /**
@@ -53,12 +70,16 @@ export type Grant = Readonly<{ mount: string; path: string; mode: "read" | "writ
 export interface Host {
   /** Who is talking, from the request the application authenticated. Null means 401. */
   resolveActor(request: unknown): Promise<Actor | null>;
-  /** May this actor start a run on this thread with these tools and grants? */
-  mayRequest(actor: Actor, request: { thread: string; tools: readonly string[]; grants: readonly Grant[] }): Promise<boolean>;
+  /** May this actor start a run of this agent on this thread with these tools and grants? */
+  mayRequest(actor: Actor, request: { agent: string; thread: string; tools: readonly string[]; grants: readonly Grant[] }): Promise<boolean>;
   /** Is this run still allowed to act? Checked before every effect (AGENT-6). */
   isActive(run: Run): Promise<boolean>;
-  /** Mounts the actor may see, mapped to providers the host owns (AGENT-7). */
-  mounts(actor: Actor): Promise<Readonly<Record<string, FileProvider>>>;
+  /**
+   * The mount table for this actor: `code` (the application's, wrap it in `readonly`), `workspace`
+   * (the person's), `shared` if any, and attached mounts `mnt/<name>` (AGENT-7, FILES-5). Asked per
+   * effect, never cached past the answer (AGENT-8).
+   */
+  mounts(actor: Actor): Promise<MountTable>;
   /** Tools this actor may be offered, decided by the application's roles (AGENT-3, AGENT-9). */
   allowedTools(actor: Actor): Promise<readonly string[]>;
   /** May this actor answer this question or give this approval? Decided by the application's roles (AGENT-5, AGENT-9). */
@@ -106,6 +127,10 @@ export type AgentDefinition = Readonly<{
   system: string;
   /** Names of helper tools the agent may call; the application registers their handlers. */
   helperTools: readonly string[];
+  /** File needs from `files:`; they become grants per run and offer the file tools (FILE_TOOLS). */
+  files: readonly FileNeed[];
+  /** Page commands from `ui:` the agent may request of the bound page; offered only when a page registered them. */
+  uiCommands: readonly string[];
   /** JSON schema of the inputs, derived from the `inputs:` block; a client can build a form from it. */
   inputs: InputSchema;
   outputs: Readonly<Record<string, string>>;
@@ -182,7 +207,14 @@ export type RuntimeOptions = Readonly<{
   maxConcurrent?: number;
   /** How many times an invalid output is sent back for repair. */
   repairs?: number;
+  /** How long a page has to answer a UI request before it is expired and the tool returns `unavailable` (ms, default 30000). */
+  uiTimeout?: number;
 }>;
+
+/** A page instance's registration on a thread: what the agent may request of it (CHAT-3). Grants nothing (UI-BOUNDARY-1). */
+export type UiRegistration = Readonly<{ page: string; commands: readonly UiCommandSpec[]; target?: UiTarget }>;
+/** A page's answer to one request; `result` distinguishes local interaction from durable effect (UI-BOUNDARY-5). */
+export type UiAnswer = Readonly<{ page: string; result: UiResult }>;
 
 /** A question or an approval, answered once by compare-and-set from the person's session (AGENT-5). */
 export type Decision = Readonly<{
