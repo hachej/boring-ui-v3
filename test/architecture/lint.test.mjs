@@ -13,12 +13,13 @@ const require = createRequire(import.meta.url);
 const oxlint = path.join(path.dirname(require.resolve("oxlint/package.json")), "bin/oxlint");
 
 function fixture(t, files) {
-  // Outside the repository: oxlint honours the parent .gitignore (which ignores .cache) wherever it runs.
+  // Outside the repository: oxlint honours the parent .gitignore (which ignores .cache) wherever it runs. The format is
+  // named because oxlint switches to the github format under GITHUB_ACTIONS, which drops the help message asserted on.
   const dir = mkdtempSync(path.join(tmpdir(), "boring-lint-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   cpSync(path.join(root, ".oxlintrc.json"), path.join(dir, ".oxlintrc.json"));
   for (const [file, text] of Object.entries(files)) { mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); writeFileSync(path.join(dir, file), text); }
-  const result = spawnSync(process.execPath, [oxlint, "-c", ".oxlintrc.json", "."], { cwd: dir, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [oxlint, "-c", ".oxlintrc.json", "--format", "default", "."], { cwd: dir, encoding: "utf8" });
   return { status: result.status, output: result.stdout + result.stderr };
 }
 
