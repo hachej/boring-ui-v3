@@ -18,7 +18,7 @@
     "badge",
     "button",
     "separator",
-    "@boring/conflict-banner"
+    "https://hachej.github.io/boring-ui-v3/r/conflict-banner.json"
   ],
   "files": [
     {

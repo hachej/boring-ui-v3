@@ -21,12 +21,5 @@
   },
   "menuColor": "default",
   "menuAccent": "subtle",
-  "registries": {
-    "@boring": {
-      "url": "https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/{name}.json",
-      "headers": {
-        "Authorization": "token ${GITHUB_TOKEN}"
-      }
-    }
-  }
+  "registries": {}
 }

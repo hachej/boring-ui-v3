@@ -2,41 +2,34 @@
 
 A [shadcn registry](https://ui.shadcn.com/docs/registry) of thin components: each is built on shadcn primitives and your theme tokens and calls one headless hook from [`@boring/viewers`](../packages/viewers) or [`@boring/chat`](../packages/chat). The hooks hold the behaviour and the agent's tools and are imported from npm, never copied; the components are copied into your app and are yours to restyle.
 
-Sources: `registry/<item>/`, declared in [`registry.json`](../registry.json). Built: `public/r/<item>.json` (`node bin/boring.mjs registry build`), committed, and served from the repository to authenticated consumers (below). Licences: [LICENSES.md](LICENSES.md).
+Sources: `registry/<item>/`, declared in [`registry.json`](../registry.json). Built: `public/r/<item>.json` (`node bin/boring.mjs registry build`), served from GitHub Pages by [`.github/workflows/registry-pages.yml`](../.github/workflows/registry-pages.yml). Licences: [LICENSES.md](LICENSES.md).
 
 ## Install
-
-The repository is private, so the registry is served from it with a token: the built items are committed under `public/r/`, fetched from GitHub's raw endpoint with an `Authorization` header. Items name each other by namespace (`@boring/conflict-banner`), so one entry in your app's `components.json` resolves all of them:
-
-```json
-{
-  "registries": {
-    "@boring": {
-      "url": "https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/{name}.json",
-      "headers": { "Authorization": "token ${GITHUB_TOKEN}" }
-    }
-  }
-}
-```
-
-`GITHUB_TOKEN` is any token that can read `hachej/boring-ui-v3` (a fine-grained personal access token with *Contents: read* on the repository, or `gh auth token`), in your environment or your app's `.env.local`. It is expanded by the shadcn CLI at install time and never written into your app's files.
 
 Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind v4), and `@boring/viewers`, `@boring/files` and `@boring/chat` resolvable from its `package.json`. They are not published to npm yet: depend on a checkout (`"@boring/viewers": "file:../boring-ui-v3/packages/viewers"`, same for files and chat) or a workspace. The CLI skips dependencies already declared, and an unresolvable one makes its `npm install` fail.
 
 | Item | Install |
 |---|---|
-| file-tree | `npx shadcn add @boring/file-tree` |
-| markdown-editor | `npx shadcn add @boring/markdown-editor` (brings conflict-banner) |
-| conflict-banner | `npx shadcn add @boring/conflict-banner` |
-| image-viewer | `npx shadcn add @boring/image-viewer` |
-| canvas | `npx shadcn add @boring/canvas` (tldraw; pass `licenseKey` from your config in production) |
-| workspace | `npx shadcn add @boring/workspace` (dockview; panels are the other items, rendered by your app) |
-| chat | `npx shadcn add @boring/chat` (brings chat-message, tool-call, ask-card, approval-card) |
-| chat-message, tool-call, ask-card, approval-card | `npx shadcn add @boring/<item>` |
+| file-tree | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/file-tree.json` |
+| markdown-editor | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/markdown-editor.json` (brings conflict-banner) |
+| conflict-banner | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/conflict-banner.json` |
+| image-viewer | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/image-viewer.json` |
+| canvas | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/canvas.json` (tldraw; pass `licenseKey` from your config in production) |
+| workspace | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/workspace.json` (dockview; panels are the other items, rendered by your app) |
+| chat | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/chat.json` (brings chat-message, tool-call, ask-card, approval-card) |
+| chat-message, tool-call, ask-card, approval-card | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` |
 
-Without the `registries` entry, a single item with no registry dependency can be added by URL with the same header, e.g. `curl -H "Authorization: token $GITHUB_TOKEN" -o file-tree.json https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/file-tree.json && npx shadcn add ./file-tree.json`; items that depend on others (markdown-editor, canvas, workspace, chat) need the entry. `public/r/registry.json` is the index.
+Fallback without Pages, from the repository itself (once it is public): `npx shadcn add https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/<item>.json`. The items it depends on are still named by their Pages URL.
 
-From a checkout of this repository, `node bin/boring.mjs registry install [items] --into <your app>` builds the current source, serves it on a local port, points your app's `@boring` entry at it for the duration, and runs the same `shadcn add @boring/<item>`.
+To name the registry once, add it to `components.json` and install by name:
+
+```json
+{ "registries": { "@boring": "https://hachej.github.io/boring-ui-v3/r/{name}.json" } }
+```
+
+```bash
+npx shadcn add @boring/markdown-editor
+```
 
 ## Use
 
@@ -63,6 +56,5 @@ The agent may request a viewer's tool only if its `agent.md` lists it under `ui:
 ```bash
 node bin/boring.mjs registry build      # public/r from registry.json + registry/
 node bin/boring.mjs registry check      # public/r is current (CI)
-node bin/boring.mjs registry install    # shadcn add @boring/<item> into examples/registry-host from a local HTTP build of this checkout (CI)
-GITHUB_TOKEN=$(gh auth token) node bin/boring.mjs registry install --from github   # the consumer's path: the example's components.json entry, main
+node bin/boring.mjs registry install    # shadcn add every item into examples/registry-host from a local build (the real install path)
 ```

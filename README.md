@@ -8,7 +8,7 @@ A library for putting an agent next to an application. The application keeps its
 | [`@boring/chat`](packages/chat) | One React shell that shows a thread and talks to that loop, skinned by tokens, slots or headless. Place it anywhere. Register the page commands the agent may request, over the wire, in-process or against a separate service. |
 | [`@boring/files`](packages/files) | Files under mounts (`/code`, `/workspace`, `/shared`, `/mnt/<name>`), with revisions and receipts, behind one provider contract the agent's tools and the host share. Memory, directory, GitHub, or a read-only view of any; HTTP routes and a browser client (`@boring/files/web`). |
 | [`@boring/viewers`](packages/viewers) | Headless viewers: a file tree, a markdown document, an image, a canvas, a workspace of panels; one hook each, with typed tools the person's controls and the agent share. No styling. |
-| [registry](registry/README.md) | A shadcn registry: with the `@boring` entry in `components.json` (the raw GitHub URL and a token), `npx shadcn add @boring/<item>` copies a thin, themable component (file-tree, markdown-editor, image-viewer, canvas, workspace, chat and its cards) built on those hooks into your app. |
+| [registry](registry/README.md) | A shadcn registry: `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` copies a thin, themable component (file-tree, markdown-editor, image-viewer, canvas, workspace, chat and its cards) built on those hooks into your app. |
 
 `agent` depends on `files`. `chat` depends on the agent's wire types only. `viewers` depends on `files` (its portable entry) and `chat`. `files` depends on nothing here. That direction is written in [ARCHITECTURE.json](ARCHITECTURE.json) and enforced by `boring check`.
 
