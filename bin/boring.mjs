@@ -26,7 +26,9 @@ Structure and evidence
   verify [all|boring|files|agent|chat]   every registered evidence; deferrals listed, never counted as passing
   laws                               every law id with its owner and evidence (docs/LAWS.md)
   features                           the feature map index (what to drive, how a person reaches it)
-  registry build|check|install [items...] [--into dir]   the shadcn registry: build public/r, check it is current, shadcn add items (default all) into examples/registry-host or any app, from a local build
+  registry build|check|install [items...] [--into dir] [--from local|github]   the shadcn registry: build public/r, check it is current,
+                                     shadcn add @boring/<item> (default all) into examples/registry-host or any app, from a local HTTP build
+                                     of this checkout (default) or from the app's components.json entry (GitHub, needs GITHUB_TOKEN)
 
 Environment (one isolated copy of an example per checkout, examples/notes by default: derived ports, own data dir, own headless browser)
   doctor                             toolchain, and whether the running instance is ours, answering and not STALE
@@ -103,9 +105,9 @@ try {
     case "registry": {
       const r = await import("../tools/registry.mjs");
       const sub = opts._[0] ?? "build";
-      if (sub === "build") print(r.build(opts.out ? { out: path.resolve(opts.out) } : {}), x => `built ${x.items.length} files into ${path.relative(root, x.out)}`);
-      else if (sub === "check") { const x = r.check(); print(x, y => y.ok ? "public/r is current" : `public/r is stale: ${y.stale.join(", ")} (run boring registry build)`); if (!x.ok) process.exitCode = 1; }
-      else if (sub === "install") print(await r.install({ names: opts._.length > 1 ? opts._.slice(1) : undefined, ...(opts.into ? { cwd: path.resolve(opts.into) } : {}), log: m => { if (!opts.json) console.log(m); } }), x => `installed ${x.added.join(", ")} into ${path.relative(root, x.cwd) || "."} from ${x.from}`);
+      if (sub === "build") print(await r.build(opts.out ? { out: path.resolve(opts.out) } : {}), x => `built ${x.items.length} files into ${path.relative(root, x.out)}`);
+      else if (sub === "check") { const x = await r.check(); print(x, y => y.ok ? "public/r is current" : `public/r is stale: ${y.stale.join(", ")} (run boring registry build)`); if (!x.ok) process.exitCode = 1; }
+      else if (sub === "install") print(await r.install({ names: opts._.length > 1 ? opts._.slice(1) : undefined, ...(opts.into ? { cwd: path.resolve(opts.into) } : {}), ...(opts.from ? { from: opts.from } : {}), log: m => { if (!opts.json) console.log(m); } }), x => `installed ${x.added.join(", ")} into ${path.relative(root, x.cwd) || "."} from ${x.from}`);
       else throw new Error(`unknown registry command ${sub}: build | check | install`);
       break;
     }

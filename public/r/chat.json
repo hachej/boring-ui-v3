@@ -10,10 +10,10 @@
   "registryDependencies": [
     "button",
     "textarea",
-    "https://hachej.github.io/boring-ui-v3/r/chat-message.json",
-    "https://hachej.github.io/boring-ui-v3/r/tool-call.json",
-    "https://hachej.github.io/boring-ui-v3/r/ask-card.json",
-    "https://hachej.github.io/boring-ui-v3/r/approval-card.json"
+    "@boring/chat-message",
+    "@boring/tool-call",
+    "@boring/ask-card",
+    "@boring/approval-card"
   ],
   "files": [
     {

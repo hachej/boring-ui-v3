@@ -4,8 +4,8 @@ The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) 
 
 ## Sub-features
 
-- build: `registry build` writes `public/r/<item>.json` with the Pages URLs in cross-item dependencies; `registry check` fails when the committed build is stale.
-- install: `registry install [items] [--into dir]` serves a local build, rewrites the cross-item URLs to it, runs `shadcn add -y -o` per item in the app; dependencies already in the app's `package.json` are skipped by the CLI.
+- build: `registry build` writes `public/r/<item>.json`; items depend on each other by namespace (`@boring/conflict-banner`); `registry check` fails when the committed build is stale.
+- install: `registry install [items] [--into dir]` serves a local HTTP build, points the app's `registries["@boring"]` at it for the duration and runs `shadcn add -y -o @boring/<item>`; `--from github` uses the app's own entry (the authenticated raw GitHub URL, `GITHUB_TOKEN`), which is what a consumer gets from main. Dependencies already in the app's `package.json` are skipped by the CLI.
 - the host: tree (`/workspace` writable, `/code` read-only), the dockview workspace holding the open files' viewers as panels, the chat; theme `moss`, light and dark (`?theme=dark`), the open file in `?open=`, the thread in `#thread=`.
 - the chat items: messages, tool calls with their outcome badge (`data-outcome`), ask and approval cards (render only until decisions exist), run status with stop, composer (Enter sends).
 
@@ -17,7 +17,8 @@ The shadcn registry (`registry.json`, `registry/<item>/`, built to `public/r/`) 
 
 ```bash
 node bin/boring.mjs registry check                    # public/r is current
-node bin/boring.mjs registry install                  # the real install path; then: git diff -- examples/registry-host ':!examples/registry-host/src/components/ui'
+node bin/boring.mjs registry install                  # the current source over local HTTP; then: git diff -- examples/registry-host ':!examples/registry-host/src/components/ui'
+GITHUB_TOKEN=$(gh auth token) node bin/boring.mjs registry install --from github   # the consumer's path, from main
 node bin/boring.mjs env up --example registry-host
 node bin/boring.mjs goto "/?open=/workspace/notes/plan.md" && node bin/boring.mjs wait-for ".boring-prose h2"
 node bin/boring.mjs thread --from-page                # send continues the page's thread, where its viewers registered their tools
@@ -32,5 +33,5 @@ Observed: `installed file-tree, …, chat into examples/registry-host`, no diff 
 
 - `boring send` without `thread --from-page` starts or continues the CLI's own thread, on which no page registered tools: the assistant answers that there is no editor or tree.
 - A page registers its tools when its chat has a thread; wait for `#thread=` before sending.
-- The cross-item dependencies in `public/r` name GitHub Pages; while the repository is private, Pages and raw URLs are not reachable from outside: install with `registry install --into <app>`.
+- The repository is private: an unauthenticated fetch of the raw URL is 404, and there is no Pages site. The consumer's `components.json` entry carries `Authorization: token ${GITHUB_TOKEN}`.
 - `registry install` needs the network for shadcn's own primitives (ui.shadcn.com).

@@ -1,23 +1,22 @@
 // `boring registry`: build the shadcn registry (registry.json + registry/<item>/ → public/r/*.json), check that the
-// committed build is current, and install items into an example through the real `shadcn add` flow, served from a
-// local URL so the install path is proved without publishing (the cross-item registryDependencies are rewritten
-// from the GitHub Pages base to the local one in a copy; the committed JSON always names the Pages URLs).
-import { spawn, spawnSync } from "node:child_process";
+// committed build is current, and install items into an app through the real `shadcn add @boring/<item>` flow.
+//
+// Items name each other by namespace (`@boring/conflict-banner`), so one `registries["@boring"]` entry in the app's
+// components.json decides where every item comes from. The repository is private: the consumer's entry is the
+// authenticated raw GitHub URL (RAW, with an Authorization header from GITHUB_TOKEN). `install` defaults to a local
+// build of this checkout served over HTTP (what CI proves for a pull request); `--from github` uses the app's own
+// entry, i.e. what a consumer gets from main.
+import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { root } from "./formal.mjs";
 
-export const PAGES = "https://hachej.github.io/boring-ui-v3/r";
-export const RAW = "https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r";
+export const RAW = "https://raw.githubusercontent.com/hachej/boring-ui-v3/main/public/r/{name}.json";
+export const CONSUMER_ENTRY = { url: RAW, headers: { Authorization: "token ${GITHUB_TOKEN}" } };
 const shadcn = () => path.join(root, "node_modules/shadcn/dist/index.js");
-const run = (args, cwd = root) => {
-  const r = spawnSync(process.execPath, [shadcn(), ...args], { cwd, encoding: "utf8", env: { ...process.env, CI: "1" } });
-  if (r.status !== 0) throw new Error(`shadcn ${args.join(" ")} failed:\n${r.stdout}${r.stderr}`);
-  return r.stdout;
-};
-/** Async on purpose: the registry is served from this process while shadcn fetches it. */
-const runAsync = (args, cwd) => new Promise((resolve, reject) => {
+const run = (args, cwd = root) => new Promise((resolve, reject) => {
+  // Async on purpose: `install` serves the registry from this process while shadcn fetches it.
   const child = spawn(process.execPath, [shadcn(), ...args], { cwd, env: { ...process.env, CI: "1" } });
   let output = "";
   child.stdout.on("data", d => { output += d; });
@@ -26,24 +25,17 @@ const runAsync = (args, cwd) => new Promise((resolve, reject) => {
 });
 export const items = () => JSON.parse(readFileSync(path.join(root, "registry.json"), "utf8")).items.map(i => i.name);
 
-/** shadcn build into `out`, with the cross-item base rewritten when `base` is not the Pages URL. */
-export function build({ out = path.join(root, "public/r"), base = PAGES } = {}) {
-  let registry = path.join(root, "registry.json");
-  if (base !== PAGES) {
-    const tmp = mkdtempSync(path.join(root, ".cache", "registry-src-"));
-    registry = path.join(tmp, "registry.json");
-    writeFileSync(registry, readFileSync(path.join(root, "registry.json"), "utf8").replaceAll(PAGES, base.replace(/\/$/, "")));
-  }
+export async function build({ out = path.join(root, "public/r") } = {}) {
   mkdirSync(out, { recursive: true });
-  run(["build", registry, "-c", root, "-o", out]);
+  await run(["build", path.join(root, "registry.json"), "-c", root, "-o", out]);
   return { out, items: readdirSync(out).filter(f => f.endsWith(".json")) };
 }
 
-/** The committed public/r equals a fresh build: the registry served from Pages is the source in this commit. */
-export function check() {
+/** The committed public/r equals a fresh build: what consumers fetch from main is the source in this commit. */
+export async function check() {
   mkdirSync(path.join(root, ".cache"), { recursive: true });
   const fresh = mkdtempSync(path.join(root, ".cache", "registry-check-"));
-  build({ out: fresh });
+  await build({ out: fresh });
   const committed = path.join(root, "public/r");
   const names = new Set([...readdirSync(fresh), ...(existsSync(committed) ? readdirSync(committed) : [])]);
   const stale = [...names].filter(n => !existsSync(path.join(committed, n)) || !existsSync(path.join(fresh, n)) || readFileSync(path.join(committed, n), "utf8") !== readFileSync(path.join(fresh, n), "utf8"));
@@ -51,7 +43,7 @@ export function check() {
   return { ok: stale.length === 0, stale };
 }
 
-/** Serves a directory on a free local port; `close()` stops it. */
+/** Serves a directory over HTTP on a free local port. */
 export async function serve(dir) {
   const server = createServer((req, res) => {
     const file = path.join(dir, decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/r\//, ""));
@@ -63,21 +55,38 @@ export async function serve(dir) {
 }
 
 /**
- * `npx shadcn add <url>` for each item into `cwd` (default the registry-host example), from a local build of this
- * checkout. `overwrite` replaces what is there, so a CI diff afterwards shows whether the committed copies match.
+ * `npx shadcn add @boring/<item>` for each item into `cwd` (default the registry-host example). `from: "local"` points
+ * the app's `@boring` registry at a local HTTP build of this checkout for the duration (and puts the app's entry
+ * back); `from: "github"` uses the app's entry as committed: the authenticated raw URL, GITHUB_TOKEN required.
  */
-export async function install({ cwd = path.join(root, "examples/registry-host"), names = items(), overwrite = true, log = () => {} } = {}) {
-  mkdirSync(path.join(root, ".cache"), { recursive: true });
-  const out = mkdtempSync(path.join(root, ".cache", "registry-r-"));
-  const server = await serve(out);
+export async function install({ cwd = path.join(root, "examples/registry-host"), names = items(), overwrite = true, from = "local", log = () => {} } = {}) {
+  const configFile = path.join(cwd, "components.json");
+  const original = readFileSync(configFile, "utf8");
+  let server = null, out = null;
   try {
-    build({ out, base: server.url });
+    if (from === "github") {
+      if (!process.env.GITHUB_TOKEN) throw new Error("--from github needs GITHUB_TOKEN (a token that can read hachej/boring-ui-v3)");
+      const entry = JSON.parse(original).registries?.["@boring"];
+      if (!entry) throw new Error(`${path.relative(root, configFile)} has no registries["@boring"] entry`);
+    } else {
+      mkdirSync(path.join(root, ".cache"), { recursive: true });
+      out = mkdtempSync(path.join(root, ".cache", "registry-r-"));
+      await build({ out });
+      server = await serve(out);
+      const config = JSON.parse(original);
+      writeFileSync(configFile, `${JSON.stringify({ ...config, registries: { ...config.registries, "@boring": `${server.url}/{name}.json` } }, null, 2)}\n`);
+    }
+    const source = from === "github" ? RAW : `${server.url}/{name}.json`;
     const added = [];
     for (const name of names) {
-      log(`shadcn add ${server.url}/${name}.json`);
-      await runAsync(["add", "-y", ...(overwrite ? ["-o"] : []), `${server.url}/${name}.json`], cwd);
+      log(`shadcn add @boring/${name}  (${source.replace("{name}", name)})`);
+      await run(["add", "-y", ...(overwrite ? ["-o"] : []), `@boring/${name}`], cwd);
       added.push(name);
     }
-    return { added, from: server.url, cwd };
-  } finally { await server.close(); rmSync(out, { recursive: true, force: true }); }
+    return { added, from: source, cwd };
+  } finally {
+    writeFileSync(configFile, original);
+    await server?.close();
+    if (out) rmSync(out, { recursive: true, force: true });
+  }
 }
