@@ -4,7 +4,7 @@
  * in memory or by an interleaved writer (FILES-7). A host that wants receipts in its own database wraps
  * the provider's log in the same transaction it uses for the file.
  */
-import type { Receipt } from "./index.ts";
+import type { Receipt } from "./contract.ts";
 
 export interface ReceiptLog {
   record(receipt: Receipt): void;

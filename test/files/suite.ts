@@ -12,7 +12,11 @@ export type Factory = (options: { seed: Record<string, string>; receipts: Receip
 const effect = { actor: "ana", thread: "t1", run: "r1", tool: "write_file" };
 const at = (path: string) => ({ mount: "workspace", path });
 
-export function conformance(name: string, factory: Factory, capabilities: { history: boolean } = { history: true }) {
+/**
+ * `history`: earlier revisions stay readable. `sessionEffect`: the transport attributes every receipt from the
+ * session, not from the caller's argument (the HTTP routes, BORING-1); receipts must then carry exactly it.
+ */
+export function conformance(name: string, factory: Factory, capabilities: { history: boolean; sessionEffect?: typeof effect } = { history: true }) {
   const fresh = async () => { const receipts = memoryReceipts(); const provider = await factory({ seed: { "notes/a.md": "alpha", "notes/b.md": "beta", "README.md": "root" }, receipts }); return { provider, receipts }; };
 
   test(`[${name}] FILES-1: stat and read return the revision the content came from; list names files and directories`, async () => {
@@ -92,8 +96,9 @@ export function conformance(name: string, factory: Factory, capabilities: { hist
     const r = await provider.remove(at("c.md"), c.after!, { ...effect, tool: "remove_file" });
     const rows: Receipt[] = [...receipts.entries];
     assert.deepEqual(rows, [w, c, r]);
-    assert.deepEqual(rows.map(x => [x.address.path, x.before === null, x.after === null, x.effect.tool]), [["notes/a.md", false, false, "write_file"], ["c.md", true, false, "create_file"], ["c.md", false, true, "remove_file"]]);
+    const tools = capabilities.sessionEffect ? [capabilities.sessionEffect.tool, capabilities.sessionEffect.tool, capabilities.sessionEffect.tool] : ["write_file", "create_file", "remove_file"];
+    assert.deepEqual(rows.map(x => [x.address.path, x.before === null, x.after === null, x.effect.tool]), [["notes/a.md", false, false, tools[0]], ["c.md", true, false, tools[1]], ["c.md", false, true, tools[2]]]);
     assert.equal(rows[0].before, a.revision); assert.equal(rows[0].id, a.id);
-    for (const row of rows) { assert.equal(row.effect.actor, "ana"); assert.equal(row.effect.run, "r1"); assert.ok(row.at); }
+    for (const row of rows) { assert.equal(row.effect.actor, capabilities.sessionEffect?.actor ?? "ana"); assert.equal(row.effect.run, capabilities.sessionEffect?.run ?? "r1"); assert.ok(row.at); }
   });
 }

@@ -1,6 +1,6 @@
 /** A provider that refuses every mutation (FILES-8): a declared limit enforced at the effect path, not described in metadata. */
 import { FileProviderError } from "./errors.ts";
-import type { FileProvider } from "./index.ts";
+import type { FileProvider } from "./contract.ts";
 
 export function readonly(provider: FileProvider): FileProvider {
   return {

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tool-call",
+  "title": "Tool call",
+  "description": "The ToolCall slot: a tool's input and output, with the page command's outcome (applied, proposed, committed, stale, conflict, denied, unavailable).",
+  "dependencies": [
+    "@boring/chat",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "badge"
+  ],
+  "files": [
+    {
+      "path": "registry/tool-call/tool-call.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: tool-call. One tool call in the transcript (the ToolCall slot). A page command's result\n// says what happened (UI-BOUNDARY-5): applied locally, proposed to the person, committed with a receipt, or refused.\nimport { ChevronRight, Wrench } from \"lucide-react\"\nimport type { SlotProps } from \"@boring/chat\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { cn } from \"@/lib/utils\"\n\nconst OUTCOME: Record<string, string> = {\n  applied: \"bg-secondary text-secondary-foreground\",\n  proposed: \"bg-accent text-accent-foreground\",\n  committed: \"bg-primary text-primary-foreground\",\n  stale: \"bg-destructive/15 text-destructive\",\n  conflict: \"bg-destructive/15 text-destructive\",\n  denied: \"bg-destructive/15 text-destructive\",\n  unavailable: \"bg-muted text-muted-foreground\",\n}\n\nexport function ToolCall({ part }: SlotProps[\"ToolCall\"]) {\n  const outcome = typeof part.output === \"object\" && part.output && \"outcome\" in part.output ? String((part.output as { outcome: unknown }).outcome) : null\n  const show = (value: unknown) => (typeof value === \"string\" ? value : JSON.stringify(value, null, 2))\n  return (\n    <details data-boring=\"tool\" data-state={part.state} data-outcome={outcome ?? undefined} className=\"group rounded-md border bg-muted/40 text-xs text-foreground\">\n      <summary className=\"flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5\">\n        <ChevronRight className=\"size-3 transition-transform group-open:rotate-90\" />\n        <Wrench className=\"size-3 text-muted-foreground\" />\n        <span className=\"font-mono\">{part.name}</span>\n        {outcome ? <Badge className={cn(\"ml-auto h-5 border-0\", OUTCOME[outcome])}>{outcome}</Badge> : <Badge variant=\"outline\" className=\"ml-auto h-5\">{part.state}</Badge>}\n      </summary>\n      <div className=\"space-y-1 border-t px-2 py-1.5\">\n        <pre className=\"max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground\">{show(part.input)}</pre>\n        {part.output !== undefined && <pre className=\"max-h-56 overflow-auto whitespace-pre-wrap font-mono text-[11px]\">{show(part.output)}</pre>}\n        {part.error && <p className=\"text-destructive\">{part.error}</p>}\n      </div>\n    </details>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "categories": [
+    "chat",
+    "agent"
+  ],
+  "type": "registry:component"
+}

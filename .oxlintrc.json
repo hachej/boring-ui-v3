@@ -128,6 +128,45 @@
           }
         ]
       }
+    },
+    {
+      "files": [
+        "packages/viewers/src/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@flue/**",
+                  "@earendil-works/**",
+                  "hono",
+                  "hono/**",
+                  "valibot",
+                  "node:*"
+                ],
+                "message": "viewers never imports Flue, a provider SDK or Node; it runs in any page (VIEWERS-7)"
+              },
+              {
+                "group": [
+                  "@boring/agent",
+                  "@boring/agent/**"
+                ],
+                "message": "viewers never imports the agent package; it reaches the agent through @boring/chat's bridge (VIEWERS-7)"
+              },
+              {
+                "group": [
+                  "@boring/files",
+                  "!@boring/files/web"
+                ],
+                "message": "viewers imports @boring/files/web only: the entry without node:fs (VIEWERS-7)"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

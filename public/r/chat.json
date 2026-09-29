@@ -1,0 +1,31 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "chat",
+  "title": "Chat",
+  "description": "@boring/chat's BoringChat, headless, dressed with shadcn primitives through its slots: messages, tool calls with outcomes, ask and approval cards, run status and a composer.",
+  "dependencies": [
+    "@boring/chat",
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "button",
+    "textarea",
+    "https://hachej.github.io/boring-ui-v3/r/chat-message.json",
+    "https://hachej.github.io/boring-ui-v3/r/tool-call.json",
+    "https://hachej.github.io/boring-ui-v3/r/ask-card.json",
+    "https://hachej.github.io/boring-ui-v3/r/approval-card.json"
+  ],
+  "files": [
+    {
+      "path": "registry/chat/chat.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: chat. @boring/chat's BoringChat in headless mode, dressed with shadcn primitives and your\n// tokens through its slots. The transcript is rebuilt from the wire (CHAT-1); this file only decides the look.\nimport { useCallback, useEffect, useRef, useState } from \"react\"\nimport { ArrowUp, Square } from \"lucide-react\"\nimport { BoringChat, type ChatClient, type SlotProps } from \"@boring/chat\"\nimport { Button } from \"@/components/ui/button\"\nimport { Textarea } from \"@/components/ui/textarea\"\nimport { ChatMessage, ChatText } from \"@/components/chat-message\"\nimport { ToolCall } from \"@/components/tool-call\"\nimport { AskCard } from \"@/components/ask-card\"\nimport { ApprovalCard } from \"@/components/approval-card\"\nimport { cn } from \"@/lib/utils\"\n\nexport type ChatProps = {\n  endpoint?: string\n  conversation: string\n  client?: ChatClient\n  thread?: string\n  onThread?: (thread: string) => void\n  inputs?: Record<string, unknown>\n  placeholder?: string\n  className?: string\n}\n\nfunction Composer({ value, onChange, onSubmit, disabled, placeholder }: SlotProps[\"Composer\"]) {\n  return (\n    <form data-boring=\"composer\" className=\"flex items-end gap-2 rounded-lg border bg-card p-2\" onSubmit={e => { e.preventDefault(); onSubmit() }}>\n      <Textarea\n        aria-label=\"message\"\n        rows={1}\n        value={value}\n        placeholder={placeholder}\n        onChange={e => onChange(e.target.value)}\n        onKeyDown={e => { if (e.key === \"Enter\" && !e.shiftKey) { e.preventDefault(); if (!disabled) onSubmit() } }}\n        className=\"max-h-40 min-h-9 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0\"\n      />\n      <Button type=\"submit\" size=\"icon\" className=\"size-8 shrink-0 rounded-full\" disabled={disabled} aria-label=\"Send\"><ArrowUp className=\"size-4\" /></Button>\n    </form>\n  )\n}\n\nfunction RunStatus({ run, cancel }: SlotProps[\"RunStatus\"]) {\n  return (\n    <li data-boring=\"run\" data-run={run.id} data-status={run.status} className=\"flex items-center gap-2 self-start text-xs text-muted-foreground\">\n      <span className=\"size-2 animate-pulse rounded-full bg-primary\" />{run.agent} is {run.status}…\n      <Button variant=\"ghost\" size=\"sm\" className=\"h-6 px-2 text-xs\" onClick={cancel}><Square className=\"size-3\" />stop</Button>\n    </li>\n  )\n}\n\nfunction UiRequest({ request }: SlotProps[\"UiRequest\"]) {\n  return <li data-boring=\"ui\" data-state={request.state} className=\"self-start font-mono text-xs text-muted-foreground\">page · {request.command} · {request.state}</li>\n}\n\nfunction Artefact({ part }: SlotProps[\"Artefact\"]) {\n  return <a data-boring=\"artefact\" href={`#/${part.mount}/${part.path}`} className=\"font-mono text-xs text-primary underline-offset-2 hover:underline\">/{part.mount}/{part.path} @ {part.revision}</a>\n}\n\nconst slots = { Message: ChatMessage, Text: ChatText, ToolCall, AskCard, ApprovalCard, Artefact, UiRequest, RunStatus, Composer }\n\nexport function Chat({ endpoint = \"/agent\", conversation, client, thread, onThread, inputs, placeholder = \"Ask the agent\", className }: ChatProps) {\n  const root = useRef<HTMLDivElement>(null)\n  const [count, setCount] = useState(0)\n  // Stable: BoringChat follows the thread again whenever onEvent changes.\n  const onEvent = useCallback(() => setCount(c => c + 1), [])\n  // Keep the newest message in view.\n  useEffect(() => { const list = root.current?.querySelector(\"[data-boring=messages]\"); list?.scrollTo({ top: list.scrollHeight }) }, [count])\n  return (\n    <div ref={root} className={cn(\"h-full min-h-0\", className)}>\n      <BoringChat\n        headless\n        endpoint={endpoint}\n        conversation={conversation}\n        client={client}\n        thread={thread}\n        onThread={onThread}\n        inputs={inputs}\n        placeholder={placeholder}\n        onEvent={onEvent}\n        slots={slots}\n        className=\"flex h-full min-h-0 flex-col gap-3 text-foreground [&_[data-boring=messages]]:flex [&_[data-boring=messages]]:min-h-0 [&_[data-boring=messages]]:flex-1 [&_[data-boring=messages]]:flex-col [&_[data-boring=messages]]:gap-3 [&_[data-boring=messages]]:overflow-auto [&_[data-boring=error]]:text-sm [&_[data-boring=error]]:text-destructive\"\n      />\n    </div>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "docs": "Needs @boring/chat in your package.json and an agent endpoint mounted with @boring/agent's mountWire.",
+  "categories": [
+    "chat",
+    "agent"
+  ],
+  "type": "registry:component"
+}

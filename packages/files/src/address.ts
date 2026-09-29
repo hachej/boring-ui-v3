@@ -7,7 +7,7 @@
  * interpreted, so no encoding or alias can name a file the canonical form cannot.
  */
 import { FileProviderError } from "./errors.ts";
-import type { FileAddress } from "./index.ts";
+import type { FileAddress } from "./contract.ts";
 
 const SEGMENT = /^[\p{L}\p{N}._\- ]+$/u;
 

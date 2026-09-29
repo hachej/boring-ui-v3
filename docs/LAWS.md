@@ -8,8 +8,8 @@ The library speaks in the developer's words (an actor, a thread, a run, a job, a
 |---|---|---|---|---|
 | BORING-1 | [INVARIANTS.md](../INVARIANTS.md) | Model output is never authority | test/agent/admission.test.ts; test/agent/files.test.ts (paths); test/chat/bridge.test.ts (page input) | Environment (admission), Actor |
 | BORING-2 | [INVARIANTS.md](../INVARIANTS.md) | Every effect leaves a receipt | test/agent/attribution.test.ts; test/files/receipts.test.ts; test/agent/files.test.ts (mount, path, revisions) | Resource (receipt), Environment |
-| BORING-3 | [INVARIANTS.md](../INVARIANTS.md) | One contract, every transport | test/files/conformance.test.ts (memory, directory, GitHub); HTTP routes deferred | Resource |
-| BORING-4 | [INVARIANTS.md](../INVARIANTS.md) | Presentation requests, it never owns | test/chat/client.test.ts; `boring smoke` (reload and restart); the tree deferred | Experience (a composition, not a noun) over Job and Resource |
+| BORING-3 | [INVARIANTS.md](../INVARIANTS.md) | One contract, every transport | test/files/conformance.test.ts (memory, directory, GitHub); test/files/routes.test.ts (the HTTP routes and their client) | Resource |
+| BORING-4 | [INVARIANTS.md](../INVARIANTS.md) | Presentation requests, it never owns | test/chat/client.test.ts; `boring smoke` (reload and restart); test/viewers/file-tree.test.ts, test/registry/round-trip.test.ts (the tree) | Experience (a composition, not a noun) over Job and Resource |
 | BORING-5 | [INVARIANTS.md](../INVARIANTS.md) | Evidence matches the claim | test/architecture (checker, registries, lint); test/formal (mutants) | the method itself (hub PLATFORM-5 cites it) |
 | BORING-6 | [INVARIANTS.md](../INVARIANTS.md) | Packages depend one way | tools/check.mjs; `boring lint`; typecheck; definitions test | structure, no noun |
 | FILES-1 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A read names its revision | test/files/conformance.test.ts, receipts.test.ts | Resource (revision) |
@@ -17,7 +17,7 @@ The library speaks in the developer's words (an actor, a thread, a run, a job, a
 | FILES-3 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Create is not overwrite | test/files/conformance.test.ts | Resource (create precondition) |
 | FILES-4 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Removal keeps revisions monotonic | test/files/conformance.test.ts | Resource (revision) |
 | FILES-5 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A mount confines every address | test/files/address.test.ts; test/agent/files.test.ts (grants) | Resource (identity), Environment (grant scope) |
-| FILES-6 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | One authority per mount | examples/embed-host/test/round-trip.test.ts; routes and tree deferred | Resource |
+| FILES-6 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | One authority per mount | examples/embed-host/test/round-trip.test.ts; test/registry/round-trip.test.ts (routes and tree) | Resource |
 | FILES-7 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | Receipt and mutation commit together | test/files/conformance.test.ts, receipts.test.ts | Resource (receipt), Actor, Job |
 | FILES-8 | [packages/files/INVARIANTS.md](../packages/files/INVARIANTS.md) | A remote provider keeps the contract or refuses | test/files/remote.test.ts, receipts.test.ts (readonly) | Resource |
 | AGENT-1 | [packages/agent/INVARIANTS.md](../packages/agent/INVARIANTS.md) | A run is durable and ends once | test/agent/durability.test.ts; `boring smoke` (restart); resumption deferred | Job (lifecycle), execution record (run) |
@@ -40,6 +40,13 @@ The library speaks in the developer's words (an actor, a thread, a run, a job, a
 | CHAT-4 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | A person's answer comes from the person | test/agent/host.test.ts, wire.test.ts; `boring smoke` (ownership); answers deferred | Actor (authenticated initiator), Approval record |
 
 | CHAT-5 | [packages/chat/INVARIANTS.md](../packages/chat/INVARIANTS.md) | The shell is a skin | examples/embed-host/test/browser.test.ts (no stylesheet, tokens) | Experience |
+| VIEWERS-1 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | One tool, every caller | test/viewers/*.test.ts; test/registry/browser.test.ts | Experience (component tools), hub UI-BOUNDARY-3 |
+| VIEWERS-2 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | Read-only is enforced where the effect happens | test/viewers/file-tree.test.ts, markdown.test.ts | Environment (declared limits), hub UI-BOUNDARY-2 |
+| VIEWERS-3 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | A result names what happened | test/viewers/file-tree.test.ts, markdown.test.ts, image.test.ts | Resource (receipt), hub UI-BOUNDARY-5 |
+| VIEWERS-4 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | A binding is one mounted instance on one target | test/viewers/bridge.test.ts | hub UI-BOUNDARY-4 |
+| VIEWERS-5 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | A save names the revision it read, and unsaved work is kept | test/viewers/markdown.test.ts | Resource (update precondition), hub UI-BOUNDARY-4 |
+| VIEWERS-6 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | The person's decision stays the person's | test/viewers/markdown.test.ts | Actor (the person), hub UI-BOUNDARY-5 |
+| VIEWERS-7 | [packages/viewers/INVARIANTS.md](../packages/viewers/INVARIANTS.md) | Headless and portable | test/architecture/lint.test.mjs; tools/check.mjs | structure, no noun |
 
 ## Reading the evidence column
 

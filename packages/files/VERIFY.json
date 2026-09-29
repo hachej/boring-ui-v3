@@ -91,9 +91,14 @@
           "claim": "A write made by the agent's tool is read at the same revision by the host through the same provider, and its receipt matches."
         },
         {
-          "kind": "pending",
-          "claim": "A write through HTTP file routes and the tree see the same revision.",
-          "reason": "the file routes and the FileTree component are not built: node bin/boring.mjs smoke"
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/registry/round-trip.test.ts"
+          ],
+          "claim": "On the registry host over HTTP: the agent's write_file, the page's file routes and the tree read the same revision; the page's save through the routes is what the agent's provider serves next; /code refuses writes on every path."
         }
       ]
     },

@@ -13,7 +13,16 @@ import { DatabaseSync } from "node:sqlite";
 import { jarPath, root } from "./formal.mjs";
 
 const require = createRequire(import.meta.url);
-export const appDir = path.join(root, "examples/notes");
+/**
+ * The examples `env up` can run. `notes` is the default; `registry-host` is the app built from the shadcn registry
+ * (file tree, markdown editor, image viewer, chat) whose scripted assistant drives the viewers' tools.
+ */
+export const EXAMPLES = {
+  notes: { dir: path.join(root, "examples/notes"), web: "web", dist: "web/dist/index.html", sources: ["packages/chat/src", "examples/notes/web"], ready: /^notes: (\S+)\/ pid/m, conversation: "questions", inputs: () => ({ notes: NOTES }) },
+  "registry-host": { dir: path.join(root, "examples/registry-host"), web: ".", dist: "dist/index.html", sources: ["packages/chat/src", "packages/viewers/src", "packages/files/src", "examples/registry-host/src", "examples/registry-host/index.html"], ready: /^registry-host: (\S+)\/ pid/m, conversation: "chat", inputs: () => ({}) },
+};
+export const exampleOf = name => { const e = EXAMPLES[name ?? "notes"]; if (!e) throw new Error(`unknown example ${name}; known: ${Object.keys(EXAMPLES).join(", ")}`); return e; };
+export const appDir = EXAMPLES.notes.dir;
 export const defaultStateDir = path.join(root, ".cache/env");
 /** The notes the example page hands the conversation with every message (examples/notes/web/main.tsx). */
 export const NOTES = ["Buy milk tomorrow.", "Call the dentist on Monday."];
@@ -57,13 +66,14 @@ export async function replay(env, scope, cursor, options = {}) {
 // ---------- environment ----------
 
 /** The chat page is built by Vite into examples/notes/web/dist; rebuilt when a chat or page source is newer. */
-export function ensurePageBuilt({ force = false, log = () => {} } = {}) {
-  const dist = path.join(appDir, "web/dist/index.html");
+export function ensurePageBuilt({ force = false, log = () => {}, example = "notes" } = {}) {
+  const ex = exampleOf(example);
+  const dist = path.join(ex.dir, ex.dist);
   const built = existsSync(dist) ? statSync(dist).mtimeMs : 0;
-  const stale = !built || newestSource([path.join(root, "packages/chat/src"), path.join(appDir, "web")], /\.(tsx?|html|css)$/).newest > built;
+  const stale = !built || newestSource(ex.sources.map(s => path.join(root, s)), /\.(tsx?|html|css)$/).newest > built;
   if (!force && !stale) return { built: false, dist };
-  log("building the chat page (vite)…");
-  const result = spawnSync(process.execPath, [path.join(path.dirname(require.resolve("vite/package.json")), "bin/vite.js"), "build", path.join(appDir, "web"), "--logLevel", "warn"], { cwd: root, encoding: "utf8" });
+  log(`building the ${example} page (vite)…`);
+  const result = spawnSync(process.execPath, [path.join(path.dirname(require.resolve("vite/package.json")), "bin/vite.js"), "build", path.join(ex.dir, ex.web), "--logLevel", "warn"], { cwd: root, encoding: "utf8" });
   if (result.status !== 0) throw new Error(`the page did not build:\n${result.stdout}${result.stderr}`);
   return { built: true, dist };
 }
@@ -82,23 +92,25 @@ export async function envUp(opts = {}) {
   if (!opts["keep-data"]) rmSync(dataDir, { recursive: true, force: true });
   mkdirSync(dataDir, { recursive: true });
   const model = opts.model ?? "fake";
-  const page = ensurePageBuilt({ log: opts.log ?? (() => {}) });
+  const example = opts.example ?? "notes";
+  const ex = exampleOf(example);
+  const page = ensurePageBuilt({ log: opts.log ?? (() => {}), example });
   const childEnv = { ...process.env, PORT: String(opts.port ?? ports.app), HOST: hostname, STORE: path.join(dataDir, "agent.sqlite"), BORING_MODEL: model };
   if (model === "fake") delete childEnv.OPENROUTER_API_KEY;
   const logFile = path.join(stateDir, "server.log");
   const out = openSync(logFile, "w");
-  const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(appDir, "server.mjs")], { cwd: root, env: childEnv, detached: true, stdio: ["ignore", out, out] });
+  const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(ex.dir, "server.mjs")], { cwd: root, env: childEnv, detached: true, stdio: ["ignore", out, out] });
   child.unref(); closeSync(out);
   let url = null;
   for (let i = 0; i < 240 && !url; i++) {
     await sleep(250);
     const log = readFileSync(logFile, "utf8");
-    const m = log.match(/^notes: (\S+)\/ pid (\d+) model (\S+)/m);
+    const m = log.match(ex.ready);
     if (m) url = m[1];
     else if (!alive(child.pid)) throw new Error(`the app exited while starting:\n${log}`);
   }
   if (!url) throw new Error(`the app did not start in 60 s; see ${path.relative(root, logFile)}`);
-  const env = { pid: child.pid, url, model, actor: opts.actor ?? "dev", ports, stateDir, dataDir, store: childEnv.STORE, logFile, pageBuilt: page.built, startedAt: new Date().toISOString(), seed: opts.seed ?? null, seeded: null, thread: null };
+  const env = { pid: child.pid, url, model, example, conversation: ex.conversation, actor: opts.actor ?? "dev", ports, stateDir, dataDir, store: childEnv.STORE, logFile, pageBuilt: page.built, startedAt: new Date().toISOString(), seed: opts.seed ?? null, seeded: null, thread: null };
   if (opts.browser !== false) {
     const chrome = chromePath(opts.chrome);
     if (!chrome) env.browser = { error: "no chromium found (npx playwright-core install chromium, or set CHROME); page controls unavailable" };
@@ -136,11 +148,11 @@ export async function envInfo(stateDir = defaultStateDir) {
   return { running: alive(env.pid), answering, ownsPort: alive(env.pid) && portOwnedBy(env.ports.app, env.pid), browser: env.browser?.pid ? alive(env.browser.pid) : false, ...env };
 }
 
-export function seeds() { const file = path.join(appDir, "seeds.json"); return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}; }
+export function seeds(example = readEnv()?.example ?? "notes") { const file = path.join(exampleOf(example).dir, "seeds.json"); return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}; }
 
 /** Run a named seed through the wire: conversation messages, agent runs, jobs; `wait` settles after a step. */
 export async function seed(env, name) {
-  const all = seeds();
+  const all = seeds(env.example);
   if (!all[name]) throw new Error(`unknown seed ${name}; known: ${Object.keys(all).join(", ") || "none"}`);
   const done = [];
   for (const step of all[name]) {
@@ -155,6 +167,14 @@ export async function seed(env, name) {
   return done;
 }
 
+/** The thread `send` continues: a given id, or the one the page in the environment's browser is on (its URL hash). */
+export async function adoptThread(env, id) {
+  const thread = id ?? await withPage(env, page => page.evaluate(() => new URLSearchParams(location.hash.slice(1)).get("thread")));
+  if (!thread) throw new Error("the page is on no thread yet (it writes #thread=<id> once its chat has one)");
+  env.thread = thread; saveEnv(env);
+  return { thread };
+}
+
 // ---------- the wire: say, request, inspect ----------
 
 export const manifest = env => wire(env, "GET", "/.well-known/boring.json").then(r => r.body);
@@ -162,7 +182,8 @@ export const manifest = env => wire(env, "GET", "/.well-known/boring.json").then
 /** A message in the conversation; the environment remembers the thread so the next message continues it. */
 export async function send(env, text, opts = {}) {
   const thread = opts.new ? undefined : opts.thread ?? env.thread ?? undefined;
-  const res = await wire(env, "POST", `/conversations/${CONVERSATION}/messages`, { text, inputs: { notes: NOTES }, ...(thread ? { thread } : {}), ...(opts.key ? { idempotencyKey: opts.key } : {}) });
+  const ex = exampleOf(env.example);
+  const res = await wire(env, "POST", `/conversations/${env.conversation ?? CONVERSATION}/messages`, { text, inputs: ex.inputs(), ...(thread ? { thread } : {}), ...(opts.key ? { idempotencyKey: opts.key } : {}) });
   if (res.status !== 202) throw new Error(`the conversation refused the message: ${res.status} ${JSON.stringify(res.body)}`);
   env.thread = res.body.thread; saveEnv(env);
   return res.body;
@@ -312,7 +333,7 @@ export const waitFor = (env, selector, timeout = 30000) => withPage(env, async p
 
 export function newestSource(dirs, pattern = /\.(ts|tsx|mjs|js|json|html|md)$/) {
   let newest = 0, file = null;
-  const walk = dir => { if (!existsSync(dir)) return; for (const entry of readdirSync(dir, { withFileTypes: true })) { if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "data" || entry.name === "states") continue; const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (pattern.test(entry.name)) { const t = statSync(full).mtimeMs; if (t > newest) { newest = t; file = full; } } } };
+  const walk = dir => { if (!existsSync(dir)) return; if (statSync(dir).isFile()) { const t = statSync(dir).mtimeMs; if (t > newest) { newest = t; file = dir; } return; } for (const entry of readdirSync(dir, { withFileTypes: true })) { if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "data" || entry.name === "states") continue; const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (pattern.test(entry.name)) { const t = statSync(full).mtimeMs; if (t > newest) { newest = t; file = full; } } } };
   for (const dir of dirs) walk(dir);
   return { newest, file };
 }
@@ -356,7 +377,9 @@ export async function doctor(opts = {}) {
   add("chromium", chrome, chrome ?? "not found (npx playwright-core install chromium, or set CHROME)", "the environment's browser, every page control, boring smoke");
   let pw = null; try { pw = require.resolve("playwright-core"); } catch { /* absent */ }
   add("playwright-core", pw, pw ? "installed" : "not resolvable (npm ci)", "page controls (screenshot, snapshot, click, type, press, eval)");
-  const dist = path.join(appDir, "web/dist/index.html");
+  const env0 = readEnv(opts.stateDir ?? defaultStateDir);
+  const ex = exampleOf(env0?.example);
+  const dist = path.join(ex.dir, ex.dist);
   add("chat page", existsSync(dist), existsSync(dist) ? path.relative(root, dist) : "not built (env up builds it)", "the page in the browser");
   add("openrouter key", true, process.env.OPENROUTER_API_KEY ? "set: env up --model openrouter runs a real model" : "unset: the fake model only (set OPENROUTER_API_KEY for a real one)", "");
   const env = readEnv(opts.stateDir ?? defaultStateDir);
@@ -365,7 +388,7 @@ export async function doctor(opts = {}) {
   const answers = alive(env.pid) ? (await wire(env, "GET", "/.well-known/boring.json").catch(() => null))?.status === 200 : false;
   const owns = alive(env.pid) ? portOwnedBy(env.ports.app, env.pid) : false;
   add("port owner", answers && owns !== false, !answers ? "not answering" : owns === null ? "answering (owner unknown on this OS)" : owns ? `answering from its own pid ${env.pid}` : `another process answers on port ${env.ports.app}`, "boring env down, free the port, boring env up");
-  const { newest, file } = newestSource([path.join(root, "packages"), appDir, path.join(root, "tools"), path.join(root, "bin")]);
+  const { newest, file } = newestSource([path.join(root, "packages"), ex.dir, path.join(root, "tools"), path.join(root, "bin")]);
   const fresh = newest <= Date.parse(env.startedAt);
   add("freshness", fresh, fresh ? "no source changed since start" : `STALE: ${path.relative(root, file)} changed after the app started`, "boring env up --restart");
   const browser = env.browser?.pid && alive(env.browser.pid);

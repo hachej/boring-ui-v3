@@ -23,6 +23,9 @@ jobs:
       - run: npx playwright-core install --with-deps chromium
       - run: npm run setup:formal
       - run: npm run check
+      - run: node bin/boring.mjs registry check
+      - name: install every registry item into the example through shadcn add; the committed copies must be what the registry installs (shadcn's own primitives under ui/ track upstream)
+        run: node bin/boring.mjs registry install && git diff --exit-code -- examples/registry-host ':!examples/registry-host/src/components/ui'
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

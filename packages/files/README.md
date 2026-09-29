@@ -35,6 +35,10 @@ The GitHub provider lets GitHub decide conflicts (the blob sha goes in the reque
 
 The same conformance suite ([test/files/suite.ts](../../test/files/suite.ts)) runs against the three providers.
 
+## Over HTTP, in a browser
+
+`@boring/files/web` is the package without `node:fs`: the contract, addresses, the memory and read-only providers, and the HTTP transport. The server mounts `fileRoutes({ basePath: "/files", resolve })`, a fetch handler; `resolve(request)` returns the session's mount table and the `Effect` its receipts carry, so nothing in a request names the actor (BORING-1). The page uses `httpFiles({ endpoint: "/files" })`, a `FileProvider` whose refusals are the same `FileProviderError`s and whose transport failures are `unverified`, never success (FILES-8). The conformance suite runs against it ([test/files/routes.test.ts](../../test/files/routes.test.ts)). The tree and the other viewers are in [`@boring/viewers`](../viewers).
+
 ## Not yet
 
-HTTP file routes, the `FileTree` component and its hook, a SQLite provider.
+A SQLite provider; a byte-level read for binary files (images are text or data URLs today).

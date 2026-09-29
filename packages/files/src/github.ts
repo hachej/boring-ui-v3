@@ -6,7 +6,7 @@
  * The token is asked of the host for each request and never kept in a field (AGENT-7).
  */
 import { FileProviderError } from "./errors.ts";
-import type { Effect, Entry, FileAddress, FileProvider, FileRef, ReadOptions, Receipt, WriteCondition } from "./index.ts";
+import type { Effect, Entry, FileAddress, FileProvider, FileRef, ReadOptions, Receipt, WriteCondition } from "./contract.ts";
 import type { ReceiptLog } from "./receipts.ts";
 
 export type GithubProviderOptions = Readonly<{

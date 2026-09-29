@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "conflict-banner",
+  "title": "Conflict banner",
+  "description": "Shown when a save was refused because the file changed since it was read: reload theirs, overwrite with mine, or keep editing.",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "alert",
+    "button"
+  ],
+  "files": [
+    {
+      "path": "registry/conflict-banner/conflict-banner.tsx",
+      "content": "\"use client\"\n\n// Boring UI registry: conflict-banner. Shown when a save was refused because the file changed since it was read\n// (VIEWERS-5). The person decides: reload (discard theirs), overwrite (keep theirs, over the version they now saw),\n// or keep editing. Nothing is overwritten without that choice.\nimport { TriangleAlert } from \"lucide-react\"\nimport { Alert, AlertDescription, AlertTitle } from \"@/components/ui/alert\"\nimport { Button } from \"@/components/ui/button\"\n\nexport type ConflictBannerProps = {\n  /** The revision the file is at now, when the provider said. */\n  current?: string | null\n  onReload: () => void | Promise<unknown>\n  onOverwrite: () => void | Promise<unknown>\n  onDismiss?: () => void\n  className?: string\n}\n\nexport function ConflictBanner({ current, onReload, onOverwrite, onDismiss, className }: ConflictBannerProps) {\n  return (\n    <Alert role=\"alert\" data-boring=\"conflict\" variant=\"destructive\" className={className}>\n      <TriangleAlert />\n      <AlertTitle>This file changed since you opened it</AlertTitle>\n      <AlertDescription>\n        <p>Someone (or the agent) saved a newer version{current ? ` (revision ${current})` : \"\"}. Your edits are kept here until you choose.</p>\n        <div className=\"mt-2 flex flex-wrap gap-2\">\n          <Button size=\"sm\" variant=\"outline\" onClick={() => void onReload()}>Reload theirs</Button>\n          <Button size=\"sm\" variant=\"destructive\" onClick={() => void onOverwrite()}>Overwrite with mine</Button>\n          {onDismiss && <Button size=\"sm\" variant=\"ghost\" onClick={onDismiss}>Keep editing</Button>}\n        </div>\n      </AlertDescription>\n    </Alert>\n  )\n}\n",
+      "type": "registry:component"
+    }
+  ],
+  "categories": [
+    "files"
+  ],
+  "type": "registry:component"
+}

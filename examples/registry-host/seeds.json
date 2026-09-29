@@ -1,0 +1,6 @@
+{
+  "empty": [],
+  "noted": [
+    { "say": "write a note", "wait": true }
+  ]
+}

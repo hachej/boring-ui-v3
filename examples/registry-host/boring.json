@@ -1,0 +1,1 @@
+{ "name": "registry-host", "version": "0.1.0", "description": "An application built from the Boring UI registry: file tree, markdown editor, image viewer and chat, installed with the shadcn CLI, driven by a person and a scripted agent through the same viewer tools." }

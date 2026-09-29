@@ -1,14 +1,16 @@
 # Boring
 
-A library for putting an agent next to an application. The application keeps its backend, its database, its auth and its deploy. Boring adds three things it can install separately:
+A library for putting an agent next to an application. The application keeps its backend, its database, its auth and its deploy. Boring adds four things it can install separately, and a registry of components to copy:
 
 | Package | What it gives you |
 |---|---|
 | [`@boring/agent`](packages/agent) | A durable agent loop mounted in your backend: threads, runs, tools admitted before they run, a receipt for every effect, questions and approvals as records, usage metered per actor. |
 | [`@boring/chat`](packages/chat) | One React shell that shows a thread and talks to that loop, skinned by tokens, slots or headless. Place it anywhere. Register the page commands the agent may request, over the wire, in-process or against a separate service. |
-| [`@boring/files`](packages/files) | Files under mounts (`/code`, `/workspace`, `/shared`, `/mnt/<name>`), with revisions and receipts, behind one provider contract the agent's tools and the host share. Memory, directory, GitHub, or a read-only view of any. |
+| [`@boring/files`](packages/files) | Files under mounts (`/code`, `/workspace`, `/shared`, `/mnt/<name>`), with revisions and receipts, behind one provider contract the agent's tools and the host share. Memory, directory, GitHub, or a read-only view of any; HTTP routes and a browser client (`@boring/files/web`). |
+| [`@boring/viewers`](packages/viewers) | Headless viewers: a file tree, a markdown document, an image; one hook each, with typed tools the person's controls and the agent share. No styling. |
+| [registry](registry/README.md) | A shadcn registry: `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` copies a thin, themable component (file-tree, markdown-editor, image-viewer, chat and its cards) built on those hooks into your app. |
 
-`agent` depends on `files`. `chat` depends on the agent's wire types only. `files` depends on nothing here. That direction is written in [ARCHITECTURE.json](ARCHITECTURE.json) and enforced by `boring check`.
+`agent` depends on `files`. `chat` depends on the agent's wire types only. `viewers` depends on `files` (its portable entry) and `chat`. `files` depends on nothing here. That direction is written in [ARCHITECTURE.json](ARCHITECTURE.json) and enforced by `boring check`.
 
 ## What makes it different from a raw agent framework
 
@@ -32,6 +34,8 @@ npm run smoke             # the CI journey on a throwaway copy of the example (n
 npm run verify            # every registered evidence: tests, models, smoke; deferrals listed
 node bin/boring.mjs env up --seed asked   # an isolated copy of examples/notes to drive (see the skill)
 node examples/embed-host/server.mjs       # an existing app on :8788 that mounts the runtime, registers page commands and attaches /code and /workspace
+node bin/boring.mjs env up --example registry-host   # the app built from the registry: tree, editor, image viewer, chat, a scripted assistant
+node bin/boring.mjs registry build|check|install     # the shadcn registry: public/r, freshness, the real install path
 node bin/boring.mjs --help
 ```
 
