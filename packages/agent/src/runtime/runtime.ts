@@ -8,7 +8,7 @@ import type { FileAddress, FileProvider } from "@boring/files";
 import type { Actor, AgentDefinition, ConversationDefinition, Effort, JobDefinition, Run, RuntimeOptions, ToolDefinition, Usage } from "../index.ts";
 import { OutputError } from "../index.ts";
 import type { Event } from "../wire.ts";
-import { Store, hashOf, isTerminal, runView, type JobRecord, type RunRecord, type ThreadRecord } from "./store.ts";
+import { Store, hashOf, isTerminal, type JobRecord, type RunRecord, type ThreadRecord } from "./store.ts";
 import { providersFor } from "./providers.ts";
 import { CancelledError, abortRun, runAgent, startFlue, stopFlue, type OfferedTool } from "./flue.ts";
 import { manifestOf, type Manifest } from "../wire/manifest.ts";

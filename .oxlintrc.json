@@ -1,0 +1,126 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "ignorePatterns": [
+    "node_modules",
+    ".cache",
+    "**/dist/**",
+    "**/data/**",
+    ".lake"
+  ],
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none"
+      }
+    ],
+    "unicorn/no-useless-fallback-in-spread": "off",
+    "unicorn/no-useless-spread": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "packages/files/src/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@boring/**",
+                  "@flue/**",
+                  "@earendil-works/**",
+                  "hono",
+                  "hono/**",
+                  "react",
+                  "react/**",
+                  "valibot"
+                ],
+                "message": "files imports nothing from this repository and no agent runtime; it is the bottom of files <- agent <- chat (BORING-6)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/agent/src/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@boring/chat",
+                  "@boring/chat/**",
+                  "react",
+                  "react/**",
+                  "react-dom",
+                  "react-dom/**"
+                ],
+                "message": "agent never imports chat or React: the direction is files <- agent <- chat (BORING-6)"
+              },
+              {
+                "group": [
+                  "@flue/runtime/internal",
+                  "@flue/runtime/internal/**"
+                ],
+                "message": "agent uses Flue's public seams only (SPEC 5)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/chat/src/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@flue/**",
+                  "@earendil-works/**",
+                  "hono",
+                  "hono/**",
+                  "valibot",
+                  "node:*"
+                ],
+                "message": "chat never imports Flue, a provider or Node; it renders the wire (BORING-6)"
+              },
+              {
+                "group": [
+                  "@boring/agent",
+                  "@boring/agent/**",
+                  "!@boring/agent/wire"
+                ],
+                "message": "chat imports only the wire types of agent (@boring/agent/wire), never its runtime (BORING-6)"
+              },
+              {
+                "group": [
+                  "@boring/files",
+                  "@boring/files/**"
+                ],
+                "message": "chat does not reach files; it renders the wire (BORING-6)"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
