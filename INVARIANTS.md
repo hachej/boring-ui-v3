@@ -24,4 +24,4 @@ Types, the checker, tests, bounded models and human acceptance establish differe
 
 ## BORING-6 — packages depend one way
 
-`files` imports nothing from this repository. `agent` imports `files`. `chat` imports only types from `agent`, never its runtime. The policy in [ARCHITECTURE.json](ARCHITECTURE.json) is executable and `boring check` enforces it, including type-only edges and computed imports.
+`files` imports nothing from this repository. `agent` imports `files`. `chat` imports only types from `agent`, never its runtime. `viewers` imports `files` (its portable entry) and `chat`, never `agent`. The policy in [ARCHITECTURE.json](ARCHITECTURE.json) is executable and `boring check` enforces it, including type-only edges and computed imports.

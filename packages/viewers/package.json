@@ -1,0 +1,13 @@
+{
+  "name": "@boring/viewers",
+  "version": "0.0.0",
+  "description": "Headless viewers: one hook per experience (file tree, markdown, image, canvas, workspace) with its typed tools, shared by the person's controls and the agent, over @boring/files and the page-command bridge of @boring/chat. No styling.",
+  "type": "module",
+  "private": true,
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@boring/chat": "*",
+    "@boring/files": "*",
+    "react": "^19.3.0"
+  }
+}

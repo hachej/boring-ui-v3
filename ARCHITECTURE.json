@@ -16,6 +16,13 @@
       "typeOnlyDependsOn": [
         "agent"
       ]
+    },
+    "viewers": {
+      "dependsOn": [
+        "files",
+        "chat"
+      ],
+      "typeOnlyDependsOn": []
     }
   },
   "externalDependencies": {
@@ -45,6 +52,9 @@
     "chat": [
       "react",
       "react/jsx-runtime"
+    ],
+    "viewers": [
+      "react"
     ]
   },
   "computedImports": {

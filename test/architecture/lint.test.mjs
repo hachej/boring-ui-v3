@@ -36,6 +36,11 @@ for (const [name, file, text, message] of [
   ["agent importing Flue internals", "packages/agent/src/x.ts", 'import { z } from "@flue/runtime/internal/db"; export const y = z;', /public seams only/],
   ["files importing agent", "packages/files/src/x.ts", 'import type { Actor } from "@boring/agent"; export type Y = Actor;', /files imports nothing/],
   ["files importing Flue", "packages/files/src/x.ts", 'import { start } from "@flue/runtime/node"; export const y = start;', /files imports nothing/],
+  ["viewers importing Flue", "packages/viewers/src/x.ts", 'import { start } from "@flue/runtime/node"; export const y = start;', /viewers never imports Flue/],
+  ["viewers importing the agent package", "packages/viewers/src/x.ts", 'import type { Actor } from "@boring/agent"; export type Y = Actor;', /viewers never imports the agent package/],
+  ["viewers importing the agent wire", "packages/viewers/src/x.ts", 'import type { Event } from "@boring/agent/wire"; export type Y = Event;', /viewers never imports the agent package/],
+  ["viewers importing Node", "packages/viewers/src/x.ts", 'import { readFileSync } from "node:fs"; export const y = readFileSync;', /viewers never imports Flue, a provider SDK or Node/],
+  ["viewers importing the Node entry of files", "packages/viewers/src/x.ts", 'import { directoryProvider } from "@boring/files"; export const y = directoryProvider;', /files\/web only/],
 ]) {
   test(`lint refuses ${name}`, t => {
     const result = fixture(t, { [file]: text });
@@ -49,6 +54,7 @@ test("lint accepts the allowed edges: chat reading the wire types, agent importi
     "packages/chat/src/x.ts": 'import type { Event } from "@boring/agent/wire"; export type Y = Event;',
     "packages/agent/src/x.ts": 'import type { FileRef } from "@boring/files"; export type Y = FileRef;',
     "packages/files/src/x.ts": 'import { readFileSync } from "node:fs"; export const y = readFileSync;',
+    "packages/viewers/src/x.ts": 'import { memoryProvider } from "@boring/files/web"; import { createUiBridge } from "@boring/chat/bridge"; import { useMemo } from "react"; export const y = [memoryProvider, createUiBridge, useMemo];',
   });
   assert.equal(result.status, 0, result.output);
 });

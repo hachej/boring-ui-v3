@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "invariants": {
+    "VIEWERS-1": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/file-tree.test.ts",
+            "test/viewers/markdown.test.ts",
+            "test/viewers/image.test.ts",
+            "test/viewers/bridge.test.ts"
+          ],
+          "claim": "The person's action and the agent's page command run the same tool: same schema refusal, same result, same state; an agent request over the bridge changes the viewer exactly as the control does."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "--test-timeout=300000",
+            "test/registry/browser.test.ts"
+          ],
+          "timeout": 600,
+          "claim": "In a browser on the registry host (items installed with shadcn add): the scripted agent reads and proposes through the editor's tools, the person accepts and the save carries the provider's receipt; a stale save shows the conflict banner and keeps both versions; the tree shows a file the agent wrote; the agent zooms and highlights the image; /code opens read-only; light and dark screenshots of every item."
+        }
+      ]
+    },
+    "VIEWERS-2": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/file-tree.test.ts",
+            "test/viewers/markdown.test.ts"
+          ],
+          "claim": "A read-only viewer offers no write tool and its provider refuses: saving a read-only document or creating under a read-only root is denied and leaves content and receipts unchanged, even on a writable provider."
+        }
+      ]
+    },
+    "VIEWERS-3": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/file-tree.test.ts",
+            "test/viewers/markdown.test.ts",
+            "test/viewers/image.test.ts"
+          ],
+          "claim": "Local tools answer applied and leave no receipt; proposals answer proposed; committed results carry the provider's receipt with both revisions; stale, conflict and denied change nothing."
+        }
+      ]
+    },
+    "VIEWERS-4": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/bridge.test.ts"
+          ],
+          "claim": "A mounted viewer registers its tools as one page bound to its document; after it moves to another document a request made for the first is answered stale and the handler does not run."
+        }
+      ]
+    },
+    "VIEWERS-5": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/markdown.test.ts"
+          ],
+          "claim": "A save after another writer changed the file is a conflict that keeps the buffer and the newer file; overwrite writes only at the revision the person has now seen; apply_patch at an old revision is stale and with unsaved edits is a conflict."
+        }
+      ]
+    },
+    "VIEWERS-6": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/viewers/markdown.test.ts"
+          ],
+          "claim": "propose_patch saves nothing; no tool accepts; the person's accept saves with a receipt; a proposal that no longer applies is stale on accept."
+        }
+      ]
+    },
+    "VIEWERS-7": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--test",
+            "test/architecture/lint.test.mjs"
+          ],
+          "claim": "The lint configuration refuses viewers importing Flue, the agent package, Node or the directory/GitHub entry of files, and accepts files/web, chat and React."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "tools/check.mjs"
+          ],
+          "claim": "viewers imports only what ARCHITECTURE.json allows: files, chat and react."
+        }
+      ]
+    }
+  }
+}
