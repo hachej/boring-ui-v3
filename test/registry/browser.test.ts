@@ -90,6 +90,15 @@ test("registry-host: the installed items work for the person and the agent, in l
     await page.locator(`[data-boring=save-state]:has-text("r${after.ref.revision}")`).waitFor();
   });
 
+  await t.test("the editor tells the host what the person selected, as get_selection reads it", async () => {
+    await page.click(".boring-prose p >> nth=0", { clickCount: 3 });
+    await page.locator("[data-testid=selection]").waitFor();
+    const paragraph = (await page.locator(".boring-prose p >> nth=0").innerText()).trim();
+    assert.equal((await page.locator("[data-testid=selection]").getAttribute("title"))?.trim(), paragraph);
+    await page.keyboard.press("End");
+    await page.locator("[data-testid=selection]").waitFor({ state: "detached" });
+  });
+
   await t.test("a stale save shows the conflict banner and keeps both versions until the person chooses", async () => {
     await page.click(".boring-prose p >> nth=0");
     await page.keyboard.press("End");

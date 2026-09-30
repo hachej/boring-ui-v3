@@ -24,10 +24,14 @@ export type MarkdownEditorProps = {
   effect?: Effect
   placeholder?: string
   className?: string
+  /** The person's selection as `get_selection` sees it, whenever it changes (null when nothing is selected). */
+  onSelection?: (selection: { from: number; to: number; text: string } | null) => void
 }
 
-export function MarkdownEditor({ files, address, readOnly, agent, effect, placeholder = "Start writing…", className }: MarkdownEditorProps) {
+export function MarkdownEditor({ files, address, readOnly, agent, effect, placeholder = "Start writing…", className, onSelection }: MarkdownEditorProps) {
   const { state, actions } = useMarkdownDocument({ files, address, readOnly, agent, effect })
+  // The host may show what the person selected (a chat's context): the same selection the agent's get_selection reads.
+  useEffect(() => { onSelection?.(state.selection) }, [state.selection])
   const [raw, setRaw] = useState(false)
   const lastEmitted = useRef<string | null>(null)
   const interacted = useRef(false)

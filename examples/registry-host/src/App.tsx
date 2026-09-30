@@ -38,6 +38,8 @@ export function App() {
   useEffect(() => { fetch("/config.json").then(r => r.json()).then(c => setLicenseKey(c.tldrawLicenseKey ?? undefined)).catch(() => {}) }, [])
 
   const agent: AgentBinding | undefined = useMemo(() => (thread ? { client, thread } : undefined), [client, thread])
+  // What the person selected in the open document (the editor's selection, the canvas's shapes), as a host shows it.
+  const [selected, setSelected] = useState("")
   // The person's layout, a file of their own; the tree and the agent open panels through the same tool.
   const workspace = useWorkspaceLayout({ files, address: "/workspace/.boring/layout.json", kinds: KINDS, agent })
   const { open } = workspace.actions
@@ -47,9 +49,9 @@ export function App() {
 
   const renderPanel = useCallback((panel: Panel) => {
     const readOnly = panel.target.startsWith("/code/")
-    if (panel.kind === "markdown") return <MarkdownEditor files={files} address={panel.target} readOnly={readOnly} agent={agent} />
+    if (panel.kind === "markdown") return <MarkdownEditor files={files} address={panel.target} readOnly={readOnly} agent={agent} onSelection={s => setSelected(s?.text ?? "")} />
     if (panel.kind === "image") return <ImageViewer files={files} address={panel.target} agent={agent} />
-    if (panel.kind === "canvas") return <Canvas files={files} address={panel.target} readOnly={readOnly} agent={agent} licenseKey={licenseKey} />
+    if (panel.kind === "canvas") return <Canvas files={files} address={panel.target} readOnly={readOnly} agent={agent} licenseKey={licenseKey} onSelection={s => setSelected(s ? `${s.ids.length} shape${s.ids.length === 1 ? "" : "s"}${s.texts.length ? `: ${s.texts.join(", ")}` : ""}` : "")} />
     return null
   }, [files, agent, licenseKey])
 
@@ -59,6 +61,7 @@ export function App() {
         <span className="size-3 rounded-full bg-primary" />
         <h1 className="text-sm font-semibold tracking-tight">Registry host</h1>
         <span className="truncate text-xs text-muted-foreground" data-testid="open-file">{active?.target ?? "nothing open"}</span>
+        {selected && <span className="max-w-72 truncate rounded bg-muted px-2 py-0.5 text-xs" data-testid="selection" title={selected}>selected: {selected}</span>}
         <Button variant="ghost" size="icon" className="ml-auto size-8" aria-label="Toggle theme" onClick={() => setTheme(t => (t === "dark" ? "light" : "dark"))}>
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
