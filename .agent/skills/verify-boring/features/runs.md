@@ -11,6 +11,7 @@
 - failure: a bad input is 400 before anything is recorded; an output that never validates fails the run with the validator's message.
 - cancel: `POST /runs/:id/cancel` → the run ends `cancelled` before its next effect; once ended, 409.
 - view and events: `GET /runs/:id`; `GET /runs/:id/events` replays then follows until the terminal event.
+- reading images (AGENT-15): `runtime.readImages(actor, { images, instruction, model })` is an in-process call, not a wire endpoint; its run (agent `read-images`, model `fake/read-images` with the fake access) is listed and traced like any other. The example app does not call it: `test/agent/images.test.ts` drives it (admission, metering, cancel, refusals); an application that uses it proves the path on its own instance.
 
 ## How to get to it (user POV)
 

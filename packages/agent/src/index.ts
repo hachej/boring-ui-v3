@@ -19,6 +19,7 @@ export { openStore, type Store, type RunRecord, type JobRecord, type ThreadRecor
 export { mountWire, type WireOptions } from "./wire/mount.ts";
 export { manifestOf, type Manifest } from "./wire/manifest.ts";
 export { FILE_TOOLS, fileTools, grantsFor, type FileNeed } from "./runtime/files.ts";
+export { READ_IMAGES, IMAGE_TYPES, type ImageInput, type ImageReading, type ReadImagesRequest, type ReadImagesResult } from "./runtime/images.ts";
 export type { UiCommandSpec, UiRequestView, UiResult, UiOutcome, UiTarget } from "./wire.ts";
 
 /**
@@ -185,8 +186,11 @@ export type AppRegistry = Readonly<{
   conversations: ReadonlyMap<string, ConversationDefinition>;
 }>;
 
-/** What the fake provider is asked and what it answers, for tests and scripted runs. */
-export type FakeRequest = Readonly<{ model: string; system: string; messages: readonly { role: "user" | "assistant" | "tool"; content: string }[]; tools: readonly { name: string }[]; outputTool: string | null }>;
+/**
+ * What the fake provider is asked and what it answers, for tests and scripted runs. A message's images
+ * (reading images, AGENT-15) appear as their media type and size, never their bytes.
+ */
+export type FakeRequest = Readonly<{ model: string; system: string; messages: readonly { role: "user" | "assistant" | "tool"; content: string; images?: readonly { mimeType: string; bytes: number }[] }[]; tools: readonly { name: string }[]; outputTool: string | null }>;
 export type FakeReply = Readonly<{ text?: string; toolCalls?: readonly { id?: string; name: string; arguments: unknown }[] }>;
 
 /**

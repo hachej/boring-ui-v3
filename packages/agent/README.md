@@ -51,6 +51,7 @@ Other runtime options an application usually sets:
 - **`language`** (`"en"` or `"fr"`) and **`phrases`** choose the words the library writes to models and into records (AGENT-14). A failed run carries a `failure` kind next to its `error` sentence.
 - **`runtime.children(actor, job)`** lists a job's runs, and **`runtime.wait(actor, run)`** resolves when a run ends, both checked against the owner.
 - Usage rows carry the provider's **`cost`** next to the tokens.
+- **`runtime.readImages(actor, { images, instruction, model, effort?, thread?, signal? })`** reads images (`{ data: Uint8Array, mimeType }`, PNG, JPEG, WebP or GIF) with one model call each through the same model access, and resolves with `{ run, readings }`, one `{ text }` or `{ error }` per image (AGENT-15). It is a run of `read-images`: admitted by `mayRequest`, metered per call, cancellable; the bytes are never stored. A model whose catalog entry takes no images is refused (400) before any call. In-process only, not on the wire.
 
 ## What exists now
 

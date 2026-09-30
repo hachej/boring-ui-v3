@@ -210,6 +210,16 @@
           ],
           "timeout": 600,
           "claim": "On the running example: every completed run has a usage row naming actor, agent and model."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/images.test.ts"
+          ],
+          "claim": "Reading images meters every call like an agent's: one usage row per image naming actor, thread, run, read-images and the model, handed to the host; a host that refuses fails the run."
         }
       ]
     },
@@ -306,6 +316,20 @@
             "test/agent/language.test.ts"
           ],
           "claim": "With language fr the history preamble, the repair request and the recorded errors are French; one phrase can be overridden; failed runs record invalid_output, error or interrupted as their failure kind."
+        }
+      ]
+    },
+    "AGENT-15": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/images.test.ts"
+          ],
+          "claim": "Each image is one model call the fake script sees (media type and size); the run of read-images is admitted by mayRequest, recorded on the actor's thread, ends once (completed, failed, or cancelled by runtime.cancel or the caller's signal), and every call leaves a usage row handed to the host; the stored run holds each image's media type, size and hash, not its bytes; a malformed request or a model without image input is refused before any call."
         }
       ]
     }

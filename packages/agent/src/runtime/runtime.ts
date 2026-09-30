@@ -14,6 +14,7 @@ import { Store, hashOf, isTerminal, type JobRecord, type RunRecord, type ThreadR
 import { providersFor } from "./providers.ts";
 import { CancelledError, abortRun, runAgent, startFlue, stopFlue, type OfferedTool } from "./flue.ts";
 import { manifestOf, type Manifest } from "../wire/manifest.ts";
+import { READ_IMAGES, ReadImagesRefused, describeImages, readAll, resolveReading, type ReadImagesRequest, type ReadImagesResult } from "./images.ts";
 
 export class RuntimeError extends Error {
   readonly status: number;
@@ -49,6 +50,12 @@ export interface Runtime {
   uiRegistrations(actor: Actor, thread: string): readonly UiRegistrationView[];
   /** One answer per request, from the run's actor and the bound page; a second answer or a wrong page is refused. */
   answerUi(actor: Actor, run: string, requestId: string, answer: UiAnswer): UiRequestView;
+  /**
+   * Reads images with one model call each (AGENT-15): admitted by the host, recorded as a run of
+   * `read-images` on the actor's thread, every call metered (AGENT-10). Resolves once the run ended,
+   * with one reading per image in order. A malformed request or a model without image input is 400.
+   */
+  readImages(actor: Actor, request: ReadImagesRequest): Promise<ReadImagesResult>;
   /** Resolves when no run is in flight (tests, graceful stop). */
   idle(): Promise<void>;
   stop(): Promise<void>;
@@ -84,7 +91,8 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     return view;
   };
   const declared = [...app.agents.values()];
-  const { providers, modelFor } = providersFor(options.model, declared.map(d => d.name), declared.flatMap(d => (d.tool ? [d.tool.name] : [])));
+  if (app.agents.has(READ_IMAGES)) throw new Error(`"${READ_IMAGES}" is the runtime's own run name for reading images; an agent cannot take it`);
+  const { providers, models, modelFor } = providersFor(options.model, [...declared.map(d => d.name), READ_IMAGES], declared.flatMap(d => (d.tool ? [d.tool.name] : [])));
   await startFlue({ providers, dbFile: options.store === ":memory:" ? undefined : `${options.store}.flue` });
 
   const maxConcurrent = options.maxConcurrent ?? 6;
@@ -278,6 +286,8 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     } finally { inflight.delete(slotKey); }
   }
 
+  /** Reading runs in flight: a cancel aborts their model calls. */
+  const readers = new Map<string, AbortController>();
   let stopped = false;
   const runtime: Runtime = {
     store,
@@ -301,6 +311,7 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       if (isTerminal(run.status)) throw new RuntimeError(409, `run "${id}" already ended (${run.status})`);
       store.requestCancel(id);
       if (run.status === "pending") store.finishRun(id, { status: "cancelled" });
+      else if (run.agent === READ_IMAGES) readers.get(id)?.abort();
       else await abortRun(agentOf(run.agent), id);
       return store.run(id)!;
     },
@@ -429,6 +440,23 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       const settled = settleUi(requestId, { state: "answered", result: { outcome: outcome!, ...(answer.result.detail !== undefined ? { detail: answer.result.detail } : {}), ...(answer.result.evidence !== undefined ? { evidence: answer.result.evidence } : {}) } });
       if (!settled) throw new RuntimeError(409, `ui request "${requestId}" is already ${store.uiRequest(requestId)!.state}`);
       return settled;
+    },
+
+    async readImages(actor, request) {
+      const name = modelFor(READ_IMAGES, request.model);
+      let model;
+      try { model = resolveReading(models, name, request); } catch (error) { if (error instanceof ReadImagesRefused) throw new RuntimeError(error.status, error.message); throw error; }
+      const thread = threadFor(actor, request.thread);
+      if (!(await host.mayRequest(actor, { agent: READ_IMAGES, thread: thread.id, tools: [], grants: [] }))) throw new RuntimeError(403, "the host does not allow this request");
+      const run = store.createRun({ thread: thread.id, agent: READ_IMAGES, actor: actor.id, input: { instruction: request.instruction, images: describeImages(request.images) }, model: name });
+      const abort = new AbortController();
+      const onAbort = () => abort.abort();
+      request.signal?.addEventListener("abort", onAbort, { once: true });
+      if (request.signal?.aborted) abort.abort();
+      readers.set(run.id, abort);
+      const onUsage = async (row: Usage) => host.onUsage(row);
+      try { return await track(readAll({ store, models, phrases, onUsage, slot, release }, actor, run, model, name, request, abort)); }
+      finally { readers.delete(run.id); request.signal?.removeEventListener("abort", onAbort); }
     },
 
     async idle() { while (pending.size) await Promise.allSettled([...pending]); },
