@@ -3,7 +3,7 @@
  * never touch a definition, a record or the wire (AGENT-7). The fake provider answers from the
  * host's script for tests and scripted runs; models named `fake/<agent>` route to it.
  */
-import { createProvider, fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall, createModels, type Provider } from "@earendil-works/pi-ai";
+import { createProvider, fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall, createModels, type Models, type Provider } from "@earendil-works/pi-ai";
 import { OPENROUTER_MODELS } from "@earendil-works/pi-ai/providers/openrouter.models";
 import { OPENAI_CODEX_MODELS } from "@earendil-works/pi-ai/providers/openai-codex.models";
 import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
@@ -45,30 +45,45 @@ class FileCredentialStore {
 }
 
 type FauxContext = { messages: readonly { role: string; content: unknown; toolsAdded?: readonly { name: string }[] }[]; systemPrompt?: string };
+type FauxPart = { type: string; text?: string; data?: string; mimeType?: string };
+
+/** One message as the fake script sees it: its text, and each image as its media type and size (never its bytes). */
+function fakeMessage(m: FauxContext["messages"][number]): FakeRequest["messages"][number] {
+  const role = (m.role === "toolResult" ? "tool" : m.role) as FakeRequest["messages"][number]["role"];
+  if (typeof m.content === "string") return { role, content: m.content };
+  const parts = (m.content as FauxPart[]) ?? [];
+  const images = parts.filter(c => c.type === "image").map(c => ({ mimeType: c.mimeType ?? "", bytes: Buffer.byteLength(c.data ?? "", "base64") }));
+  return { role, content: parts.filter(c => c.type === "text").map(c => c.text ?? "").join(""), ...(images.length ? { images } : {}) };
+}
+
+/** A model collection over the same providers, for calls the loop makes outside an agent run (reading images). */
+function collectionOf(providers: readonly Provider[]): Models {
+  const models = createModels();
+  for (const provider of providers) models.setProvider(provider);
+  return models;
+}
 
 /**
- * The providers to register with Flue for this access, and the model name every agent's model
- * maps to (the fake provider takes all of them). Nothing here is stored.
+ * The providers to register with Flue for this access, the model name every agent's model maps to
+ * (the fake provider takes all of them), and the same providers as a collection for direct calls.
+ * Nothing here is stored.
  */
-export function providersFor(access: ModelAccess, agentModels: readonly string[], outputTools: readonly string[]): { providers: Provider[]; modelFor: (agent: string, declared: string) => string } {
+export function providersFor(access: ModelAccess, agentModels: readonly string[], outputTools: readonly string[]): { providers: Provider[]; models: Models; modelFor: (agent: string, declared: string) => string } {
   if (access.kind === "fake") {
     const faux = fauxProvider({ provider: FAKE_PROVIDER, models: [...new Set([...agentModels, "none"])].map(id => ({ id })), tokensPerSecond: 1_000_000 });
     // Flue sends tools inside the system message (`toolsAdded`), next to its own inert `task` tool.
     const step = async (context: FauxContext, _options: unknown, _state: unknown, model: { id: string }) => {
       faux.appendResponses([step as never]);
-      const messages = context.messages.map(m => ({
-        role: (m.role === "toolResult" ? "tool" : m.role) as FakeRequest["messages"][number]["role"],
-        content: typeof m.content === "string" ? m.content : ((m.content as { type: string; text?: string }[]) ?? []).filter(c => c.type === "text").map(c => c.text ?? "").join(""),
-      }));
+      const messages = context.messages.map(fakeMessage);
       const tools = context.messages.flatMap(m => m.toolsAdded ?? []).filter(t => t.name !== "task");
       const outputTool = tools.find(t => outputTools.includes(t.name))?.name ?? null;
-      const reply: FakeReply = await access.script({ model: `${FAKE_PROVIDER}/${model.id}`, system: context.systemPrompt ?? "", messages, tools, outputTool });
+      const reply: FakeReply = await access.script({ model: `${FAKE_PROVIDER}/${model.id}`, system: context.systemPrompt ?? messages.find(m => (m.role as string) === "system")?.content ?? "", messages, tools, outputTool });
       const calls = reply.toolCalls ?? [];
       return fauxAssistantMessage(calls.length ? calls.map((c, i) => fauxToolCall(c.name, c.arguments as never, { id: c.id ?? `call-${Date.now()}-${i}` })) : [fauxText(reply.text ?? "")], { stopReason: calls.length ? "toolUse" : "stop" });
     };
     // Several runs share the provider: keep the queue well ahead of concurrent calls.
     faux.setResponses(Array.from({ length: 64 }, () => step as never));
-    return { providers: [faux.provider], modelFor: agent => `${FAKE_PROVIDER}/${agent}` };
+    return { providers: [faux.provider], models: collectionOf([faux.provider]), modelFor: agent => `${FAKE_PROVIDER}/${agent}` };
   }
   if (access.kind === "openrouter") {
     const apiKey = access.apiKey;
@@ -80,7 +95,7 @@ export function providersFor(access: ModelAccess, agentModels: readonly string[]
       models: Object.values(OPENROUTER_MODELS),
       api: openAICompletionsApi(),
     } as never);
-    return { providers: [provider], modelFor: (_agent, declared) => declared };
+    return { providers: [provider], models: collectionOf([provider]), modelFor: (_agent, declared) => declared };
   }
   const models = createModels({ credentials: new FileCredentialStore(access.credentialsFile) as never });
   models.setProvider(openaiCodexProvider());
@@ -96,5 +111,5 @@ export function providersFor(access: ModelAccess, agentModels: readonly string[]
     models: Object.values(OPENAI_CODEX_MODELS),
     api: openAICodexResponsesApi(),
   } as never);
-  return { providers: [provider], modelFor: (_agent, declared) => declared };
+  return { providers: [provider], models: collectionOf([provider]), modelFor: (_agent, declared) => declared };
 }

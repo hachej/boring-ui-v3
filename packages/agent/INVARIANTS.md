@@ -57,3 +57,7 @@ A page registers the commands it offers on a thread; registering grants nothing.
 ## AGENT-14 — the library's words are the application's language
 
 Every sentence the library itself writes (the history preamble and speaker labels given to a model, a repair request, a refusal, the error recorded on a failed, revoked or interrupted run) comes from one phrase table in the language the application chose at mount time, with any phrase overridable. A failed run also records a failure kind (`invalid_output`, `revoked`, `interrupted`, `error`) so an application can decide what to show without parsing a sentence in any language.
+
+## AGENT-15 — reading images is a run like any other
+
+An application may hand the runtime images (bytes and a media type) with an instruction and a model, and receive one text per image (`runtime.readImages`). The host admits the request (`mayRequest`, agent `read-images`, no tools, no grants); the run is recorded on one of the actor's threads before any model call and ends once; each image is one model call, metered and attributed under AGENT-10; a cancel or the caller's signal stops the calls in flight. The bytes reach the model through the host's model access and are never stored: the run records each image's media type, size and hash. A model whose catalog entry does not accept images is refused before any call, never sent a placeholder. The fake provider shows each image to the script as its media type and size.
