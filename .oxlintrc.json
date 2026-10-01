@@ -32,6 +32,21 @@
   "overrides": [
     {
       "files": [
+        "packages/*/src/**"
+      ],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "process",
+            "property": "env",
+            "message": "a package never reads the environment: the host passes configuration in; only an adapter folder may (BORING-7)"
+          }
+        ]
+      }
+    },
+    {
+      "files": [
         "packages/files/src/**"
       ],
       "rules": {
@@ -51,6 +66,13 @@
                   "valibot"
                 ],
                 "message": "files imports nothing from this repository and no agent runtime; it is the bottom of files <- agent <- chat (BORING-6)"
+              },
+              {
+                "group": [
+                  "node:fs",
+                  "node:fs/promises"
+                ],
+                "message": "node:fs is used only inside an adapter folder or a reasoned exception in ARCHITECTURE.json adapters.fsAllowed (BORING-7)"
               }
             ]
           }
@@ -83,6 +105,20 @@
                   "@flue/runtime/internal/**"
                 ],
                 "message": "agent uses Flue's public seams only (SPEC 5)"
+              },
+              {
+                "group": [
+                  "@earendil-works/pi-ai/providers/*",
+                  "@earendil-works/pi-ai/api/*"
+                ],
+                "message": "a provider SDK module is imported only inside an adapter folder, packages/<package>/src/adapters/<port>/<name>/ (BORING-7)"
+              },
+              {
+                "group": [
+                  "node:fs",
+                  "node:fs/promises"
+                ],
+                "message": "node:fs is used only inside an adapter folder or a reasoned exception in ARCHITECTURE.json adapters.fsAllowed (BORING-7)"
               }
             ]
           }
@@ -166,6 +202,112 @@
             ]
           }
         ]
+      }
+    },
+    {
+      "files": [
+        "packages/agent/src/adapters/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@boring/chat",
+                  "@boring/chat/**",
+                  "react",
+                  "react/**",
+                  "react-dom",
+                  "react-dom/**"
+                ],
+                "message": "agent never imports chat or React: the direction is files <- agent <- chat (BORING-6)"
+              },
+              {
+                "group": [
+                  "@flue/runtime/internal",
+                  "@flue/runtime/internal/**"
+                ],
+                "message": "agent uses Flue's public seams only (SPEC 5)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/agent/src/definitions/load.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@boring/chat",
+                  "@boring/chat/**",
+                  "react",
+                  "react/**",
+                  "react-dom",
+                  "react-dom/**"
+                ],
+                "message": "agent never imports chat or React: the direction is files <- agent <- chat (BORING-6)"
+              },
+              {
+                "group": [
+                  "@flue/runtime/internal",
+                  "@flue/runtime/internal/**"
+                ],
+                "message": "agent uses Flue's public seams only (SPEC 5)"
+              },
+              {
+                "group": [
+                  "@earendil-works/pi-ai/providers/*",
+                  "@earendil-works/pi-ai/api/*"
+                ],
+                "message": "a provider SDK module is imported only inside an adapter folder, packages/<package>/src/adapters/<port>/<name>/ (BORING-7)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/files/src/directory.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@boring/**",
+                  "@flue/**",
+                  "@earendil-works/**",
+                  "hono",
+                  "hono/**",
+                  "react",
+                  "react/**",
+                  "valibot"
+                ],
+                "message": "files imports nothing from this repository and no agent runtime; it is the bottom of files <- agent <- chat (BORING-6)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/*/src/adapters/**"
+      ],
+      "rules": {
+        "no-restricted-properties": "off"
       }
     }
   ]

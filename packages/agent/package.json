@@ -6,7 +6,8 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./wire": "./src/wire.ts"
+    "./wire": "./src/wire.ts",
+    "./models": "./src/adapters/models/index.ts"
   },
   "dependencies": {
     "@boring/files": "*",

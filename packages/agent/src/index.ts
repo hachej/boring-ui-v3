@@ -190,13 +190,16 @@ export type FakeRequest = Readonly<{ model: string; system: string; messages: re
 export type FakeReply = Readonly<{ text?: string; toolCalls?: readonly { id?: string; name: string; arguments: unknown }[] }>;
 
 /**
- * Model access, supplied by the host at mount time and never stored (AGENT-7).
- * `fake` answers from a script and routes every agent to `fake/<agent>`.
+ * Model access, supplied by the host at mount time and never stored (AGENT-7). Each kind is served
+ * by one model adapter (packages/agent/src/adapters/models/<kind>, AGENT-16).
+ * `fake` answers from a script and routes every agent to `fake/<agent>`; `baseUrl` points a real
+ * provider at a compatible gateway or a test double.
  */
 export type ModelAccess =
   | Readonly<{ kind: "fake"; script: (request: FakeRequest) => FakeReply | Promise<FakeReply> }>
-  | Readonly<{ kind: "openrouter"; apiKey: string }>
-  | Readonly<{ kind: "openai-codex"; credentialsFile: string }>;
+  | Readonly<{ kind: "openrouter"; apiKey: string; baseUrl?: string }>
+  | Readonly<{ kind: "openai-codex"; credentialsFile: string; baseUrl?: string }>;
+export type { ModelAdapter, ModelContext, ModelProviders } from "./runtime/model-port.ts";
 
 export type RuntimeOptions = Readonly<{
   host: Host;

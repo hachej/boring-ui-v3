@@ -25,3 +25,7 @@ Types, the checker, tests, bounded models and human acceptance establish differe
 ## BORING-6 — packages depend one way
 
 `files` imports nothing from this repository. `agent` imports `files`. `chat` imports only types from `agent`, never its runtime. `viewers` imports `files` (its portable entry) and `chat`, never `agent`. The policy in [ARCHITECTURE.json](ARCHITECTURE.json) is executable and `boring check` enforces it, including type-only edges and computed imports.
+
+## BORING-7 — the environment and vendor SDKs live in adapters
+
+A package never reads the process environment and never imports a provider SDK module: the host passes configuration and credentials in (AGENT-7). Code that must talk to one vendor or read one place lives in an adapter folder, `packages/<package>/src/adapters/<port>/<name>/`, which implements exactly one port, imports the rest of the package as types only, and never imports another adapter. The runtime reaches a port's adapters only through that port's table, `adapters/<port>/index.ts`. `node:fs` outside an adapter folder is a reasoned exception listed in [ARCHITECTURE.json](ARCHITECTURE.json) (`adapters.fsAllowed`). `boring check` enforces this and oxlint mirrors it with messages naming this law. The ports and their adapters are listed in [docs/architecture/PORTS.md](docs/architecture/PORTS.md).

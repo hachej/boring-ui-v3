@@ -180,6 +180,28 @@
           "claim": "Definition loading validates front matter with errors naming the file and field; a registry never grants anything."
         }
       ]
+    },
+    "BORING-7": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "tools/check.mjs"
+          ],
+          "claim": "No package source outside an adapter folder reads process.env or import.meta.env, imports a provider SDK module (@earendil-works/pi-ai/providers/*, /api/*) or node:fs (except the reasoned exceptions in ARCHITECTURE.json); core code reaches adapters only through a port's table; an adapter imports core code as types only and never another adapter."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--test",
+            "test/architecture/check.test.mjs",
+            "test/architecture/lint.test.mjs"
+          ],
+          "claim": "Negative controls: a fixture that reads the environment, imports a provider SDK module or node:fs in the runtime, imports an adapter from core, or imports one adapter from another fails the checker; the same fixtures fail oxlint with a message naming BORING-7; an adapter doing the same is accepted."
+        }
+      ]
     }
   }
 }

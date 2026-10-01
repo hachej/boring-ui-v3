@@ -63,5 +63,24 @@
   "consumers": [
     "examples",
     "test"
-  ]
+  ],
+  "adapters": {
+    "why": "BORING-7: the environment and vendor SDKs are touched only inside an adapter folder, packages/<package>/src/adapters/<port>/<name>/. The runtime reaches a port's adapters only through that port's table, packages/<package>/src/adapters/<port>/index.ts; an adapter imports core code as types only and never another adapter.",
+    "vendorModules": [
+      "@earendil-works/pi-ai/providers/",
+      "@earendil-works/pi-ai/api/"
+    ],
+    "environment": [
+      "process.env",
+      "import.meta.env"
+    ],
+    "fsModules": [
+      "node:fs",
+      "node:fs/promises"
+    ],
+    "fsAllowed": {
+      "packages/agent/src/definitions/load.ts": "reads the application's own definition folder (the AppRegistry the host hands the runtime), not deployment state",
+      "packages/files/src/directory.ts": "the directory FileProvider: an implementation of the files provider contract (FILES-*, its conformance suite), published at its path since before the adapter folders"
+    }
+  }
 }
