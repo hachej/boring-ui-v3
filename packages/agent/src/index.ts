@@ -191,7 +191,7 @@ export type FakeReply = Readonly<{ text?: string; toolCalls?: readonly { id?: st
 
 /**
  * Model access, supplied by the host at mount time and never stored (AGENT-7). Each kind is served
- * by one model adapter (packages/agent/src/adapters/models/<kind>, AGENT-15).
+ * by one model adapter (packages/agent/src/adapters/models/<kind>, AGENT-16).
  * `fake` answers from a script and routes every agent to `fake/<agent>`; `baseUrl` points a real
  * provider at a compatible gateway or a test double.
  */

@@ -1,4 +1,4 @@
-// AGENT-15: every ModelAccess kind has exactly one model adapter in the runtime's table, each
+// AGENT-16: every ModelAccess kind has exactly one model adapter in the runtime's table, each
 // adapter's providers route the models the runtime asks for, a real provider reports usage on
 // its response (so AGENT-10 can meter it), and a credential never appears in what the adapter
 // returns. The real providers run against a local double of their API (`baseUrl`); their live
@@ -37,20 +37,20 @@ async function completionsDouble(t: test.TestContext) {
   return { url: `http://127.0.0.1:${port}/v1`, seen };
 }
 
-test("AGENT-15: the runtime's table has one adapter per ModelAccess kind, each serving its own kind", () => {
+test("AGENT-16: the runtime's table has one adapter per ModelAccess kind, each serving its own kind", () => {
   assert.deepEqual(Object.keys(MODEL_ADAPTERS).sort(), [...KINDS].sort());
   for (const kind of KINDS) assert.equal(MODEL_ADAPTERS[kind].kind, kind);
   assert.throws(() => providersFor({ kind: "nope" } as never, [], []), /no model adapter for kind nope/);
 });
 
-test("AGENT-15: the fake adapter routes every agent to fake/<agent> and needs no credential", () => {
+test("AGENT-16: the fake adapter routes every agent to fake/<agent> and needs no credential", () => {
   const { providers, modelFor } = providersFor({ kind: "fake", script: () => ({ text: "x" }) }, ["summarise"], []);
   assert.equal(providers.length, 1);
   assert.equal(providers[0]!.id, "fake");
   assert.equal(modelFor("summarise", "openrouter/some/model"), "fake/summarise");
 });
 
-test("AGENT-15: the openrouter adapter answers through its provider with the host's key and reports usage", async t => {
+test("AGENT-16: the openrouter adapter answers through its provider with the host's key and reports usage", async t => {
   const double = await completionsDouble(t);
   const { providers, modelFor } = providersFor({ kind: "openrouter", apiKey: SECRET, baseUrl: double.url }, ["a"], []);
   assert.equal(modelFor("a", "openrouter/anthropic/claude-sonnet-4.5"), "openrouter/anthropic/claude-sonnet-4.5", "the declared model is kept");
@@ -68,7 +68,7 @@ test("AGENT-15: the openrouter adapter answers through its provider with the hos
   assert.equal(double.seen[0]!.authorization, `Bearer ${SECRET}`, "the key goes only to the provider's endpoint");
 });
 
-test("AGENT-15: the openai-codex adapter reads its credentials file at request time and refuses without a login", async t => {
+test("AGENT-16: the openai-codex adapter reads its credentials file at request time and refuses without a login", async t => {
   const dir = mkdtempSync(path.join(tmpdir(), "codex-conformance-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const double = await completionsDouble(t);
@@ -86,7 +86,7 @@ test("AGENT-15: the openai-codex adapter reads its credentials file at request t
   assert.equal(double.seen.length, 0, "nothing leaves without a credential");
 });
 
-test("AGENT-15: a real adapter refuses to start without its credential", () => {
+test("AGENT-16: a real adapter refuses to start without its credential", () => {
   assert.throws(() => providersFor({ kind: "openrouter", apiKey: "" }, [], []), /API key is required/);
   assert.throws(() => providersFor({ kind: "openai-codex", credentialsFile: "" }, [], []), /credentials file is required/);
 });

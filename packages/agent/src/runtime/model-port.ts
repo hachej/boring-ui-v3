@@ -1,5 +1,5 @@
 /**
- * The model port (AGENT-15): what a model adapter is. An adapter turns the host's ModelAccess
+ * The model port (AGENT-16): what a model adapter is. An adapter turns the host's ModelAccess
  * into the pi-ai providers Flue registers, and says which model name each agent runs on.
  * Credentials come from the host's ModelAccess at mount time and never touch a definition, a
  * record or the wire (AGENT-7); usage is metered by the runtime on every response, whatever the

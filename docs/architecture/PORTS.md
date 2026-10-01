@@ -7,7 +7,7 @@ The library owns two ports a consumer reuses rather than redefines:
 | Port | Contract | Adapters | Conformance |
 |---|---|---|---|
 | files | the `FileProvider` contract, [packages/files/src/contract.ts](../../packages/files/src/contract.ts) (FILES-1..8) | memory, directory, GitHub, the remote HTTP client, the read-only decorator; the hub's versioned workspace files implement it too | `test/files/suite.ts`, run against every provider (and by the hub against its own) |
-| models | `ModelAdapter`, [packages/agent/src/runtime/model-port.ts](../../packages/agent/src/runtime/model-port.ts) (AGENT-15) | `fake`, `openrouter`, `openai-codex` under [packages/agent/src/adapters/models](../../packages/agent/src/adapters/models); `@boring/agent/models` exports the provider factories for a host that builds its own runtime | `test/agent/model-adapters.test.ts` (real providers against a local double of their API) |
+| models | `ModelAdapter`, [packages/agent/src/runtime/model-port.ts](../../packages/agent/src/runtime/model-port.ts) (AGENT-16) | `fake`, `openrouter`, `openai-codex` under [packages/agent/src/adapters/models](../../packages/agent/src/adapters/models); `@boring/agent/models` exports the provider factories for a host that builds its own runtime | `test/agent/model-adapters.test.ts` (real providers against a local double of their API) |
 
 The third seam is the `Host` contract of `@boring/agent` (AGENT-8): the application, not the library, decides who the actor is, what a run may touch and where files live. It is a port the application implements once; the hub's composition root implements it for folder apps.
 
