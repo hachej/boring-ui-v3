@@ -57,3 +57,7 @@ A page registers the commands it offers on a thread; registering grants nothing.
 ## AGENT-14 — the library's words are the application's language
 
 Every sentence the library itself writes (the history preamble and speaker labels given to a model, a repair request, a refusal, the error recorded on a failed, revoked or interrupted run) comes from one phrase table in the language the application chose at mount time, with any phrase overridable. A failed run also records a failure kind (`invalid_output`, `revoked`, `interrupted`, `error`) so an application can decide what to show without parsing a sentence in any language.
+
+## AGENT-15 — model providers are adapters behind one port
+
+The runtime asks for models through one port ([model-port.ts](src/runtime/model-port.ts)): the host's `ModelAccess` names a kind, and the one adapter of that kind in [adapters/models](src/adapters/models/index.ts) returns the providers to register and the model each agent runs on. Every kind has exactly one adapter, an adapter needs its credential to start and refuses a request it cannot authenticate before anything leaves the process, the credential is read only inside the adapter and never appears in what it returns, and a real provider's response carries its usage so the runtime meters it before the next step (AGENT-10). A new provider is a new adapter folder and a `ModelAccess` variant; the runtime does not change.

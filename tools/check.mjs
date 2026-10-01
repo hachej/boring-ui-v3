@@ -8,6 +8,32 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
+/** Reads of the process environment in a source file: `process.env`, `process["env"]`, `import.meta.env` (one entry per occurrence). */
+export function environmentReads(source, filename) {
+  const reads = [];
+  const syntax = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
+  function visit(node) {
+    const access = ts.isPropertyAccessExpression(node) ? node.name.text : ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : null;
+    if (access === "env") {
+      const target = node.expression;
+      if (ts.isIdentifier(target) && target.text === "process") reads.push("process.env");
+      else if (ts.isMetaProperty(target) && target.keywordToken === ts.SyntaxKind.ImportKeyword && target.name.text === "meta") reads.push("import.meta.env");
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(syntax);
+  return reads;
+}
+
+/** `{ port, name }` for a file in an adapter folder, `{ port, table: true }` for a port's table, else null. */
+export function adapterOf(relative) {
+  const m = /^packages\/[^/]+\/src\/adapters\/([^/]+)\/(.+)$/.exec(relative.split(path.sep).join("/"));
+  if (!m) return null;
+  const [port, rest] = [m[1], m[2]];
+  if (!rest.includes("/")) return { port, table: true };
+  return { port, name: rest.split("/")[0] };
+}
+
 export function importSpecifiers(source, filename) {
   const imports = [];
   const syntax = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
@@ -113,8 +139,25 @@ export async function checkArchitecture(root) {
       const from = ownerOf(file);
       const label = path.relative(root, file);
       const source = await readFile(file, "utf8");
+      const adapters = policy.adapters ?? null;
+      const here = from.kind === "package" ? adapterOf(label) : null;
+      if (adapters && from.kind === "package" && !here?.name) {
+        for (const read of environmentReads(source, file)) errors.push(`${label}: reads ${read} outside an adapter folder (BORING-7: the host passes configuration in)`);
+      }
       for (const { specifier, typeOnly } of importSpecifiers(source, file)) {
         if (specifier === null) { if (!Object.hasOwn(policy.computedImports ?? {}, label)) errors.push(`${label}: computed module loading is not declared`); continue; }
+        if (adapters && from.kind === "package") {
+          if (!here?.name && (adapters.vendorModules ?? []).some(prefix => specifier.startsWith(prefix))) errors.push(`${label}: imports the vendor SDK module ${specifier} outside an adapter folder (BORING-7)`);
+          if (!here?.name && (adapters.fsModules ?? []).includes(specifier) && !Object.hasOwn(adapters.fsAllowed ?? {}, label)) errors.push(`${label}: imports ${specifier} outside an adapter folder (BORING-7; a reasoned exception goes in ARCHITECTURE.json adapters.fsAllowed)`);
+          if (specifier.startsWith(".")) {
+            const resolved = await resolveImport(file, specifier);
+            const to = resolved ? adapterOf(path.relative(root, resolved)) : null;
+            if (here?.name && to?.name && (to.port !== here.port || to.name !== here.name)) errors.push(`${label}: an adapter imports another adapter: ${specifier} (BORING-7)`);
+            else if (here?.name && resolved && !to && !typeOnly) errors.push(`${label}: an adapter imports core code as types only: ${specifier} (BORING-7)`);
+            else if (!here && to?.name) errors.push(`${label}: core code imports an adapter directly: ${specifier} (BORING-7: only the port's table adapters/${to.port}/index.ts does)`);
+            else if (here?.table && to?.name && to.port !== here.port) errors.push(`${label}: a port's table lists only its own adapters: ${specifier} (BORING-7)`);
+          }
+        }
         let target = null;
         if (specifier.startsWith("@boring/")) {
           const [name, ...rest] = specifier.slice(8).split("/");

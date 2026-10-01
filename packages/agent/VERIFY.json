@@ -308,6 +308,35 @@
           "claim": "With language fr the history preamble, the repair request and the recorded errors are French; one phrase can be overridden; failed runs record invalid_output, error or interrupted as their failure kind."
         }
       ]
+    },
+    "AGENT-15": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/model-adapters.test.ts"
+          ],
+          "claim": "The table has one adapter per ModelAccess kind, each serving its own kind; fake routes every agent to fake/<agent>; openrouter answers through its provider against a local double of the chat-completions API with the host's key and reports usage on the response, the key absent from the provider's data; openai-codex reads its credentials file at request time and refuses without a login before any request leaves; a real adapter refuses to start without its credential."
+        },
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/usage.test.ts"
+          ],
+          "claim": "Whatever the adapter, each model response writes one usage row the host receives before the next step (AGENT-10, through the fake adapter)."
+        },
+        {
+          "kind": "pending",
+          "claim": "openrouter and openai-codex answer a real request with usage through their providers.",
+          "reason": "needs real credentials, run by hand: OPENROUTER_API_KEY=... node --disable-warning=ExperimentalWarning --test test/agent/model-adapters.live.test.ts (not written yet; the hub's `boring env up --model openai-codex/gpt-6-astra` is the running proof today)"
+        }
+      ]
     }
   }
 }

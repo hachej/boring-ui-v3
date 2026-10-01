@@ -133,3 +133,28 @@ test("duplicate definitions and missing owner evidence fail registry validation"
   writeFileSync(file, JSON.stringify(registry));
   assert.throws(() => loadRegistries(dir), /files: FILES-2 has no evidence entry/);
 });
+
+// BORING-7: the environment and vendor SDKs only inside an adapter folder, adapters reached only through their port's table.
+for (const [name, file, text, message] of [
+  ["the runtime reading process.env", "packages/agent/src/runtime/probe.ts", "export const key = process.env.OPENROUTER_API_KEY;", /reads process\.env outside an adapter folder \(BORING-7/],
+  ["a package reading process[\"env\"]", "packages/files/src/probe.ts", 'export const key = process["env"].X;', /reads process\.env outside an adapter folder/],
+  ["a package reading import.meta.env", "packages/chat/src/probe.ts", "export const mode = import.meta.env.MODE;", /reads import\.meta\.env outside an adapter folder/],
+  ["the runtime importing a provider SDK module", "packages/agent/src/runtime/probe.ts", 'import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex"; export const p = openaiCodexProvider;', /imports the vendor SDK module @earendil-works\/pi-ai\/providers\/openai-codex outside an adapter folder/],
+  ["the runtime importing node:fs", "packages/agent/src/runtime/probe.ts", 'import { readFileSync } from "node:fs"; export const r = readFileSync;', /imports node:fs outside an adapter folder/],
+  ["core importing an adapter directly", "packages/agent/src/runtime/probe.ts", 'import { openrouter } from "../adapters/models/openrouter/index.ts"; export const o = openrouter;', /core code imports an adapter directly/],
+  ["an adapter importing another adapter", "packages/agent/src/adapters/models/openrouter/probe.ts", 'import { fake } from "../fake/index.ts"; export const f = fake;', /an adapter imports another adapter/],
+  ["an adapter importing core values", "packages/agent/src/adapters/models/fake/probe.ts", 'import { createRuntime } from "../../../runtime/runtime.ts"; export const c = createRuntime;', /an adapter imports core code as types only/],
+]) {
+  test(`BORING-7 refuses ${name}`, async t => {
+    const dir = fixture(t);
+    source(dir, file, text);
+    assert.match(await errorsOf(dir), message);
+  });
+}
+
+test("BORING-7 accepts an adapter reading its SDK, node:fs and the environment, and the runtime reading the table", async t => {
+  const dir = fixture(t);
+  source(dir, "packages/agent/src/adapters/models/probe/index.ts", 'import { readFileSync } from "node:fs"; import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex"; import type { ModelAdapter } from "../../../runtime/model-port.ts"; export const p: [unknown, unknown, ModelAdapter | null, unknown] = [readFileSync, openaiCodexProvider, null, process.env.X];');
+  source(dir, "packages/agent/src/runtime/probe.ts", 'import { MODEL_ADAPTERS } from "../adapters/models/index.ts"; export const t = MODEL_ADAPTERS;');
+  assert.deepEqual(await checkArchitecture(dir), []);
+});
