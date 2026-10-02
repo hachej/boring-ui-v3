@@ -11,10 +11,10 @@ Prerequisites: a React app with shadcn initialised (`npx shadcn init`, Tailwind 
 | Item | Install |
 |---|---|
 | file-tree | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/file-tree.json` |
-| markdown-editor | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/markdown-editor.json` (brings conflict-banner) |
+| markdown-editor | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/markdown-editor.json` (brings conflict-banner); `onSelection` tells the host what the person selected, as `get_selection` reads it |
 | conflict-banner | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/conflict-banner.json` |
 | image-viewer | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/image-viewer.json` |
-| canvas | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/canvas.json` (tldraw; pass `licenseKey` from your config in production) |
+| canvas | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/canvas.json` (tldraw; pass `licenseKey` from your config in production; `onSelection` gives the selected shapes) |
 | workspace | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/workspace.json` (dockview; panels are the other items, rendered by your app) |
 | chat | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/chat.json` (brings chat-message, tool-call, ask-card, approval-card) |
 | chat-message, tool-call, ask-card, approval-card | `npx shadcn add https://hachej.github.io/boring-ui-v3/r/<item>.json` |

@@ -27,6 +27,8 @@ export type CanvasProps = {
   /** Save the person's changes after this many ms without one (default 1200; 0 turns it off). */
   autosave?: number
   className?: string
+  /** The shapes the person selected (ids and their text), whenever the selection changes; null when none. */
+  onSelection?: (selection: { ids: string[]; texts: string[] } | null) => void
 }
 
 /** tldraw behind the CanvasEditor adapter. Loads and tool changes are merged as remote, so only the person's edits count as theirs. */
@@ -82,7 +84,7 @@ function useDark() {
   return dark
 }
 
-export function Canvas({ files, address, readOnly, agent, effect, licenseKey, autosave = 1200, className }: CanvasProps) {
+export function Canvas({ files, address, readOnly, agent, effect, licenseKey, autosave = 1200, className, onSelection }: CanvasProps) {
   const { state, actions, attach } = useCanvasDocument({ files, address, readOnly, agent, effect, autosave })
   const dark = useDark()
   return (
@@ -99,7 +101,14 @@ export function Canvas({ files, address, readOnly, agent, effect, licenseKey, au
       {state.conflict && <ConflictBanner className="rounded-none border-x-0 border-t-0" current={state.conflict.current} onReload={actions.reload} onOverwrite={actions.overwrite} onDismiss={actions.dismissConflict} />}
       {state.error && state.status !== "ready" && <p role="alert" className="px-4 py-3 text-sm text-destructive">{state.error}</p>}
       <div className="relative min-h-0 flex-1">
-        <Tldraw licenseKey={licenseKey} colorScheme={dark ? "dark" : "light"} onMount={editor => attach(tldrawAdapter(editor))} />
+        <Tldraw licenseKey={licenseKey} colorScheme={dark ? "dark" : "light"} onMount={editor => {
+          const adapter = tldrawAdapter(editor)
+          const detach = attach(adapter)
+          // The host may show what the person selected (a chat's context): the same selection get_shapes reports.
+          const report = () => { const ids = adapter.selection().map(String); onSelection?.(ids.length ? { ids, texts: adapter.shapes().filter(s => ids.includes(s.id)).map(s => s.text ?? "").filter(Boolean) } : null) }
+          const stop = editor.store.listen(report, { scope: "session" })
+          return () => { stop(); detach() }
+        }} />
       </div>
     </div>
   )
