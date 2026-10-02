@@ -135,6 +135,12 @@ export type AgentDefinition = Readonly<{
   files: readonly FileNeed[];
   /** Page commands from `ui:` the agent may request of the bound page; offered only when a page registered them. */
   uiCommands: readonly string[];
+  /**
+   * Other agents of this application the model may hand a focused task to (`subagents:`), each on its own
+   * model, instructions and helper tools; only the delegate's final answer returns. One level: a subagent
+   * declares no subagents of its own.
+   */
+  subagents: readonly string[];
   /** JSON schema of the inputs, derived from the `inputs:` block; a client can build a form from it. */
   inputs: InputSchema;
   outputs: Readonly<Record<string, string>>;
