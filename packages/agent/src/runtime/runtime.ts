@@ -190,15 +190,21 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
   }
 
   /** Runs one recorded run to its single end (AGENT-1); every effect after a stop is refused (AGENT-6). */
-  async function execute(run: RunRecord, definition: AgentDefinition, actor: Actor, message: string, history: History, tools: readonly ToolDefinition[], grants: readonly Grant[], settings: { model: string; effort?: Effort }): Promise<RunRecord> {
+  async function execute(run: RunRecord, definition: AgentDefinition, actor: Actor, message: string, history: History, tools: readonly ToolDefinition[], grants: readonly Grant[], settings: { model: string; effort?: Effort }, delegates: readonly Delegate[] = []): Promise<RunRecord> {
     await slot();
     try {
       if (!store.startRun(run.id)) { store.finishRun(run.id, { status: "cancelled" }); return store.run(run.id)!; }
       const result = await runAgent(definition, {
         runId: run.id, message, history, tools: bindTools(tools, run, actor, grants), validate: definition.validate, repairs, phrases, ...settings,
+        // A delegate acts inside the parent's run: its tools are bound to this run, admitted and receipted like the parent's (AGENT-2, AGENT-4).
+        subagents: delegates.map(d => ({
+          name: d.definition.name, description: d.definition.description ?? d.definition.title,
+          instructions: d.definition.rules ? `${d.definition.system}\n\n${d.definition.rules}` : d.definition.system,
+          tools: bindTools(d.tools, run, actor, grants), model: d.settings.model, effort: d.settings.effort,
+        })),
         cancelled: () => !!store.run(run.id)?.cancelRequested,
         onUsage: async usage => {
-          const row: Usage = { actor: actor.id, thread: run.thread, run: run.id, agent: definition.name, model: usage.model, input: usage.input, output: usage.output, cached: usage.cached, cost: usage.cost, at: new Date().toISOString() };
+          const row: Usage = { actor: actor.id, thread: run.thread, run: run.id, agent: usage.agent ?? definition.name, model: usage.model, input: usage.input, output: usage.output, cached: usage.cached, cost: usage.cost, at: new Date().toISOString() };
           store.addUsage(row);
           await host.onUsage(row);
         },
@@ -225,21 +231,29 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
     return store.run(run.id)!;
   }
 
+  /** A subagent as one run offers it: the child's definition, its tools for this actor, its model settings. */
+  type Delegate = { definition: AgentDefinition; tools: readonly ToolDefinition[]; settings: { model: string; effort?: Effort } };
+
   type Launch = { definition: AgentDefinition; actor: Actor; thread: ThreadRecord; input: Record<string, unknown>; personText: string | null; history: History; job?: string | null };
   /** Admission, the record, the person's message, then the background execution. */
   async function launch(request: Launch): Promise<{ run: RunRecord; done: Promise<RunRecord> }> {
     const { definition, actor, thread } = request;
     const tools = await offeredTools(definition, actor, thread.id);
+    // Each declared subagent gets its own tools, intersected with what the host allows this actor (AGENT-3).
+    const delegates: Delegate[] = await Promise.all(definition.subagents.map(async name => {
+      const child = agentOf(name);
+      return { definition: child, tools: await offeredTools(child, actor, thread.id), settings: settingsFor(child) };
+    }));
     // Grants: the definition's needs against the mounts the host gives this actor, admitted per run (AGENT-8).
     const grants = definition.files.length ? grantsFor(definition.files, Object.keys(await host.mounts(actor))) : [];
-    if (!(await host.mayRequest(actor, { agent: definition.name, thread: thread.id, tools: tools.map(t => t.name), grants }))) throw new RuntimeError(403, "the host does not allow this request");
+    if (!(await host.mayRequest(actor, { agent: definition.name, thread: thread.id, tools: [...new Set([...tools, ...delegates.flatMap(d => d.tools)].map(t => t.name))], grants }))) throw new RuntimeError(403, "the host does not allow this request");
     const settings = settingsFor(definition);
     const input = { rules: definition.rules, ...request.input };
     let message: string;
     try { message = definition.buildMessage(input); } catch (error) { throw new RuntimeError(400, `${definition.name}: ${(error as Error).message}`); }
     const run = store.createRun({ thread: thread.id, agent: definition.name, actor: actor.id, job: request.job ?? null, input: request.input, model: settings.model });
     if (request.personText !== null) store.addMessage(thread.id, run.id, { role: "person", run: run.id, parts: [{ type: "text", text: request.personText }] });
-    const done = track(execute(run, definition, actor, message, request.history, tools, grants, settings));
+    const done = track(execute(run, definition, actor, message, request.history, tools, grants, settings, delegates));
     return { run, done };
   }
 

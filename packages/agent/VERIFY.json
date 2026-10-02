@@ -26,7 +26,7 @@
         {
           "kind": "pending",
           "claim": "A run interrupted mid-effect resumes against recorded inputs instead of failing.",
-          "reason": "resumption needs the lease and receipt-replay protocol of SPEC \u00a74: node --test test/agent/resume.test.ts"
+          "reason": "resumption needs the lease and receipt-replay protocol of SPEC §4: node --test test/agent/resume.test.ts"
         }
       ]
     },
@@ -335,6 +335,20 @@
           "kind": "pending",
           "claim": "openrouter and openai-codex answer a real request with usage through their providers.",
           "reason": "needs real credentials, run by hand: OPENROUTER_API_KEY=... node --disable-warning=ExperimentalWarning --test test/agent/model-adapters.live.test.ts (not written yet; the hub's `boring env up --model openai-codex/gpt-6-astra` is the running proof today)"
+        }
+      ]
+    },
+    "AGENT-17": {
+      "verifiers": [
+        {
+          "kind": "command",
+          "command": [
+            "node",
+            "--disable-warning=ExperimentalWarning",
+            "--test",
+            "test/agent/subagents.test.ts"
+          ],
+          "claim": "With fake models, a parent that delegates through Flue's task tool runs the subagent on fake/<subagent> with its own helper tool, the tool call is receipted under the parent run, the subagent's calls are metered under its name and model and handed to the host; a host that allows no tools leaves the subagent none; a subagent that is unknown, the agent itself, or declares subagents of its own is refused at load."
         }
       ]
     }

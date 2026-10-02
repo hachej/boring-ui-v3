@@ -2,10 +2,11 @@
  * Loaders for the standard definition files an application ships:
  *
  *   agents/<name>/agent.md        front matter (name, title, model, effort, max_tokens, output,
- *                                 helper_tools, files, ui, inputs, outputs) + system prompt; `inputs:` lines are
+ *                                 helper_tools, files, ui, subagents, inputs, outputs) + system prompt; `inputs:` lines are
  *                                 `name: description` or `name: { type, description, required, enum }`;
  *                                 `files: [read, write]` needs every mount, `files:` with `<mount>: read` lines
- *                                 needs those mounts; `ui: [name, ...]` names page commands it may request
+ *                                 needs those mounts; `ui: [name, ...]` names page commands it may request;
+ *                                 `subagents: [agent, ...]` names other agents of the app it may delegate to
  *   agents/<name>/tool.json       the output tool (name, description, input schema) when output: tool
  *   agents/<name>/rules.md        editable defaults handed to buildMessage as `rules`
  *   agents/<name>/index.mjs       buildMessage(input) → string, validate(output) → output, asText(output) → string,
@@ -93,6 +94,9 @@ export async function loadAgentDefinition(dir: string): Promise<AgentDefinition>
   const files = fileNeeds(meta, file);
   const uiCommands = field(meta, file, "ui", "list") ?? [];
   for (const command of uiCommands) if (!TOOL_NAME.test(command)) throw new DefinitionError(file, `"ui" entry "${command}" must match ${TOOL_NAME}`);
+  const subagents = field(meta, file, "subagents", "list") ?? [];
+  for (const sub of subagents) if (!NAME.test(sub)) throw new DefinitionError(file, `"subagents" entry "${sub}" must match ${NAME}`);
+  if (subagents.includes(name)) throw new DefinitionError(file, `"subagents" cannot name the agent itself`);
   const inputs = inputSchema(meta, file);
   const outputs = field(meta, file, "outputs", "map") ?? {};
   const description = field(meta, file, "description", "string");
@@ -104,7 +108,7 @@ export async function loadAgentDefinition(dir: string): Promise<AgentDefinition>
   for (const fn of ["buildMessage", "validate", "asText"]) if (typeof module[fn] !== "function") throw new DefinitionError(join(dir, "index.mjs"), `must export a function "${fn}"`);
   if (module.tools !== undefined && typeof module.tools !== "function") throw new DefinitionError(join(dir, "index.mjs"), `"tools" must be a function when exported`);
   return {
-    kind: "agent", name, title, description, model, effort: effort as AgentDefinition["effort"], maxTokens, output, tool, rules, system: body, helperTools, files, uiCommands, inputs, outputs, dir,
+    kind: "agent", name, title, description, model, effort: effort as AgentDefinition["effort"], maxTokens, output, tool, rules, system: body, helperTools, files, uiCommands, subagents, inputs, outputs, dir,
     buildMessage: module.buildMessage as AgentDefinition["buildMessage"],
     validate: module.validate as AgentDefinition["validate"],
     asText: module.asText as AgentDefinition["asText"],
@@ -160,6 +164,13 @@ export async function loadApp(dir: string): Promise<AppRegistry> {
   if (typeof app.version !== "string" || !app.version) throw new DefinitionError(file, `"version" is required`);
   const agents = new Map<string, AgentDefinition>();
   for (const name of folders(join(dir, "agents"))) agents.set(name, await loadAgentDefinition(join(dir, "agents", name)));
+  // Delegation is predeclared and one level deep: every subagent is an agent of this app that delegates to no one.
+  for (const definition of agents.values()) for (const sub of definition.subagents) {
+    const file = join(dir, "agents", definition.name, "agent.md");
+    const child = agents.get(sub);
+    if (!child) throw new DefinitionError(file, `"subagents" names "${sub}", which is not an agent of this app`);
+    if (child.subagents.length) throw new DefinitionError(file, `"subagents" names "${sub}", which declares subagents of its own: delegation is one level deep`);
+  }
   const jobs = new Map<string, JobDefinition>();
   for (const name of folders(join(dir, "jobs"))) jobs.set(name, await loadJobDefinition(join(dir, "jobs", name), agents));
   const conversations = new Map<string, ConversationDefinition>();
